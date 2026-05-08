@@ -1,0 +1,394 @@
+{
+  "SurveyEntry": {
+    "SurveyID": "SV_9JWhM3a7FlvmyPk",
+    "SurveyName": "Urban Commute Mode Choice (EU)",
+    "SurveyDescription": "Stated-preference study of commuting decisions across four travel modes in a mid-size European city.",
+    "SurveyOwnerID": "UR_zn7f6UqUQyDMFop",
+    "SurveyBrandID": "utilitylab",
+    "DivisionID": null,
+    "SurveyLanguage": "EN",
+    "SurveyActiveResponseSet": "RS_giQL95OCRkStqU2",
+    "SurveyStatus": "Inactive",
+    "SurveyStartDate": "0000-00-00 00:00:00",
+    "SurveyExpirationDate": "0000-00-00 00:00:00",
+    "SurveyCreationDate": "2026-05-08 08:23:25",
+    "CreatorID": "UR_zn7f6UqUQyDMFop",
+    "LastModified": "2026-05-08 08:23:25",
+    "LastAccessed": "0000-00-00 00:00:00",
+    "LastActivated": "0000-00-00 00:00:00",
+    "Deleted": null
+  },
+  "SurveyElements": [
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "BL",
+      "PrimaryAttribute": "Survey Blocks",
+      "SecondaryAttribute": null,
+      "TertiaryAttribute": null,
+      "Payload": [
+        {
+          "Type": "Standard",
+          "Description": "Block 1",
+          "ID": "BL_Dv3i9SvWRqdhvBj",
+          "BlockElements": [
+            {
+              "Type": "Question",
+              "QuestionID": "QID1"
+            },
+            {
+              "Type": "Question",
+              "QuestionID": "QID2"
+            },
+            {
+              "Type": "Question",
+              "QuestionID": "QID3"
+            }
+          ]
+        },
+        {
+          "Type": "Standard",
+          "Description": "Block 2",
+          "ID": "BL_OcWUzrf5Fwyu1bf",
+          "BlockElements": [
+            {
+              "Type": "Question",
+              "QuestionID": "QID4"
+            },
+            {
+              "Type": "Question",
+              "QuestionID": "QID5"
+            },
+            {
+              "Type": "Question",
+              "QuestionID": "QID6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "FL",
+      "PrimaryAttribute": "Survey Flow",
+      "SecondaryAttribute": null,
+      "TertiaryAttribute": null,
+      "Payload": {
+        "Type": "Root",
+        "FlowID": "FL_WPlYcbKn",
+        "Flow": [
+          {
+            "Type": "BlockRandomizer",
+            "FlowID": "FL_ZeZ6Ho4M",
+            "SubSet": "1",
+            "EvenPresentation": true,
+            "Flow": [
+              {
+                "Type": "Standard",
+                "ID": "BL_Dv3i9SvWRqdhvBj",
+                "FlowID": "FL_8XHHbkIM",
+                "Autofill": []
+              },
+              {
+                "Type": "Standard",
+                "ID": "BL_OcWUzrf5Fwyu1bf",
+                "FlowID": "FL_kcHQpB9o",
+                "Autofill": []
+              }
+            ]
+          }
+        ],
+        "Properties": {
+          "Count": 3
+        }
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SO",
+      "PrimaryAttribute": "Survey Options",
+      "SecondaryAttribute": null,
+      "TertiaryAttribute": null,
+      "Payload": {
+        "BackButton": "false",
+        "SaveAndContinue": "true",
+        "SurveyProtection": "PublicSurvey"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID1",
+      "SecondaryAttribute": "Choice task 1 (Block 1)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>45 min</td><td>30 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Medium</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_1_1",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 1",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID1"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID2",
+      "SecondaryAttribute": "Choice task 2 (Block 1)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>30 min</td><td>15 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Medium</td><td>Low</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_1_2",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 2",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID2"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID3",
+      "SecondaryAttribute": "Choice task 3 (Block 1)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>15 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Medium</td><td>High</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_1_3",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 3",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID3"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID4",
+      "SecondaryAttribute": "Choice task 4 (Block 2)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>15 min</td><td>30 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Low</td><td>Medium</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_2_4",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 4",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID4"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID5",
+      "SecondaryAttribute": "Choice task 5 (Block 2)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>30 min</td><td>15 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Low</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_2_5",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 5",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID5"
+      }
+    },
+    {
+      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "Element": "SQ",
+      "PrimaryAttribute": "QID6",
+      "SecondaryAttribute": "Choice task 6 (Block 2)",
+      "TertiaryAttribute": null,
+      "Payload": {
+        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>45 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Low</td><td>High</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "DataExportTag": "Q_2_6",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Configuration": {
+          "QuestionDescriptionOption": "UseText"
+        },
+        "QuestionDescription": "Choice task 6",
+        "Choices": {
+          "1": {
+            "Display": "Car"
+          },
+          "2": {
+            "Display": "Public transport"
+          },
+          "3": {
+            "Display": "Bike"
+          },
+          "4": {
+            "Display": "Walking"
+          }
+        },
+        "ChoiceOrder": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "Validation": {
+          "Settings": {
+            "ForceResponse": "OFF",
+            "Type": "None"
+          }
+        },
+        "Language": [],
+        "QuestionID": "QID6"
+      }
+    }
+  ]
+}
