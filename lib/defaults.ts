@@ -1,4 +1,4 @@
-import type { Project, Alternative, Attribute, Level } from './schema'
+import type { Project, Alternative, Attribute, ContextVariable, Level } from './schema'
 import { uniqueSlug } from './slug'
 
 function genId(): string {
@@ -48,6 +48,37 @@ export function createAttribute(project: Project): Attribute {
       { id: genId(), value: 3, position: 2 },
     ],
   }
+}
+
+export function createContextVariable(project: Project): ContextVariable {
+  const list = project.contextVariables ?? []
+  const existingIds = list.map((c) => c.id)
+  const existingNames = list.map((c) => c.name)
+  const base = 'New context'
+  let name = base
+  let n = 2
+  while (existingNames.includes(name)) {
+    name = `${base} ${n}`
+    n++
+  }
+  return {
+    id: uniqueSlug(name, existingIds),
+    name,
+    type: 'categorical',
+    position: list.length,
+    levels: [
+      { id: genId(), value: 'Level 1', position: 0 },
+      { id: genId(), value: 'Level 2', position: 1 },
+      { id: genId(), value: 'Level 3', position: 2 },
+    ],
+  }
+}
+
+export function createContextLevel(cv: ContextVariable): Level {
+  const next = cv.levels.length
+  if (cv.type === 'numeric') return { id: genId(), value: next + 1, position: next }
+  if (cv.type === 'boolean') return { id: genId(), value: next === 0, position: next }
+  return { id: genId(), value: `Level ${next + 1}`, position: next }
 }
 
 export function createLevel(attr: Attribute): Level {

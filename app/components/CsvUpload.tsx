@@ -19,6 +19,7 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
   task: 'Task #',
   block: 'Block',
   cell: 'Cell',
+  context: 'Context',
   ignore: 'Ignore',
 }
 
@@ -247,7 +248,7 @@ export default function CsvUpload({
               <th className="py-2 pr-3 font-medium">Sample</th>
               <th className="py-2 pr-3 font-medium">Role</th>
               <th className="py-2 pr-3 font-medium">Alternative</th>
-              <th className="py-2 pr-3 font-medium">Attribute</th>
+              <th className="py-2 pr-3 font-medium">Attribute / context</th>
               <th className="py-2 font-medium">Match</th>
             </tr>
           </thead>
@@ -264,15 +265,16 @@ export default function CsvUpload({
                 <td className="py-2 pr-3">
                   <select
                     value={m.role}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newRole = e.target.value as ColumnRole
                       updateMapping(i, {
-                        role: e.target.value as ColumnRole,
-                        alternativeId:
-                          e.target.value === 'cell' ? m.alternativeId : undefined,
-                        attributeId:
-                          e.target.value === 'cell' ? m.attributeId : undefined,
+                        role: newRole,
+                        alternativeId: newRole === 'cell' ? m.alternativeId : undefined,
+                        attributeId: newRole === 'cell' ? m.attributeId : undefined,
+                        contextVariableId:
+                          newRole === 'context' ? m.contextVariableId : undefined,
                       })
-                    }
+                    }}
                     className={miniSelect}
                   >
                     {(Object.keys(ROLE_LABELS) as ColumnRole[]).map((r) => (
@@ -319,9 +321,27 @@ export default function CsvUpload({
                       ))}
                     </select>
                   )}
+                  {m.role === 'context' && (
+                    <select
+                      value={m.contextVariableId ?? ''}
+                      onChange={(e) =>
+                        updateMapping(i, {
+                          contextVariableId: e.target.value || undefined,
+                        })
+                      }
+                      className={miniSelect}
+                    >
+                      <option value="">— pick —</option>
+                      {(project.contextVariables ?? []).map((cv) => (
+                        <option key={cv.id} value={cv.id}>
+                          {cv.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="py-2">
-                  {m.role === 'cell' && (
+                  {(m.role === 'cell' || m.role === 'context') && (
                     <select
                       value={m.matchMode ?? 'value'}
                       onChange={(e) =>
@@ -330,8 +350,8 @@ export default function CsvUpload({
                       className={miniSelect}
                       title={
                         m.matchMode === 'index'
-                          ? 'Cell value is the level number (1, 2, 3…)'
-                          : 'Cell value matches a level value directly'
+                          ? 'CSV value is the level number (1, 2, 3…)'
+                          : 'CSV value matches a level value directly'
                       }
                     >
                       <option value="value">value</option>

@@ -34,19 +34,37 @@ export type Alternative = {
   position: number
 }
 
-export type ColumnMappingRole = 'task' | 'block' | 'cell' | 'ignore'
+export type ColumnMappingRole = 'task' | 'block' | 'cell' | 'context' | 'ignore'
 
 export type ColumnMapping = {
   csvColumn: string
   role: ColumnMappingRole
   alternativeId?: string
   attributeId?: string
+  contextVariableId?: string
 }
 
 export type DesignRow = {
   taskId: number
   block: number
   cells: Record<string, string>
+  // Scenario context: contextVariableId → levelId. Same value across all
+  // alternatives within the same task (e.g., weather, travel purpose).
+  context?: Record<string, string>
+}
+
+// Scenario context: variables that vary across choice tasks but are uniform
+// within a task (the same context applies to every alternative). Examples:
+// weather, travel purpose, time of day. Structurally similar to Attribute,
+// but with no `appliesTo` (always all-task) and no `preferenceDirection`.
+export type ContextVariable = {
+  id: string
+  name: string
+  type: AttributeType
+  unit?: string
+  displayFormat?: DisplayFormat
+  levels: Level[]
+  position: number
 }
 
 export type ScoreWeights = {
@@ -116,6 +134,7 @@ export type Project = {
   experimentType: 'unlabeled' | 'labeled'
   alternatives: Alternative[]
   attributes: Attribute[]
+  contextVariables?: ContextVariable[]
   design: Design | null
   builder: BuilderConfig
   validationConfig?: ValidationConfig

@@ -157,6 +157,39 @@ function checkBalance(project: Project, cfg: ValidationConfig['balance']): Findi
       })
     }
   }
+  // Scenario context: each level should appear ~equally across tasks (one
+  // value per task, regardless of alternative count).
+  for (const cv of project.contextVariables ?? []) {
+    if (cv.levels.length < 2) continue
+    const counts = new Map<string, number>(cv.levels.map((l) => [l.id, 0]))
+    for (const row of rows) {
+      const lid = row.context?.[cv.id]
+      if (lid && counts.has(lid)) counts.set(lid, counts.get(lid)! + 1)
+    }
+    const totalSlots = rows.length
+    const ideal = totalSlots / cv.levels.length
+    if (ideal === 0) continue
+    const deviations = cv.levels.map((l) => {
+      const actual = counts.get(l.id) ?? 0
+      const dev = ((actual - ideal) / ideal) * 100
+      return {
+        levelId: l.id,
+        levelLabel: l.displayValue ?? String(l.value),
+        actual,
+        ideal,
+        deviationPct: dev,
+      }
+    })
+    const maxAbs = Math.max(...deviations.map((d) => Math.abs(d.deviationPct)))
+    if (maxAbs > cfg.maxDeviationPct) {
+      findings.push({
+        check: 'balance',
+        severity: 'warning',
+        message: `Context "${cv.name}" levels are imbalanced (max deviation ${maxAbs.toFixed(1)}% > ${cfg.maxDeviationPct}%)`,
+        details: { contextVariableId: cv.id, deviations, ideal, totalSlots },
+      })
+    }
+  }
   return findings
 }
 

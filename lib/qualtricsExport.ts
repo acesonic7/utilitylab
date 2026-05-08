@@ -34,6 +34,23 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
     .map((id) => project.attributes.find((a) => a.id === id))
     .filter((a): a is Attribute => !!a)
 
+  // Scenario context preamble: rendered above the table when present.
+  const cvars = project.contextVariables ?? []
+  const ctxParts: string[] = []
+  for (const cv of cvars) {
+    const lid = row.context?.[cv.id]
+    if (!lid) continue
+    const level = cv.levels.find((l) => l.id === lid)
+    if (!level) continue
+    const text = level.displayValue ?? String(level.value)
+    ctxParts.push(
+      `<strong>${escapeHtml(cv.name)}:</strong> ${escapeHtml(text)}`,
+    )
+  }
+  const preamble = ctxParts.length
+    ? `<p style="margin:0 0 0.5em 0;color:#555;">${ctxParts.join(' &middot; ')}</p>`
+    : ''
+
   const headerCells = altOrder.map((a) => `<th>${escapeHtml(a.label)}</th>`).join('')
   const headerRow = `<tr><th></th>${headerCells}</tr>`
 
@@ -51,7 +68,7 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
     })
     .join('')
 
-  return `<table border="1" cellpadding="6" cellspacing="0"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
+  return `${preamble}<table border="1" cellpadding="6" cellspacing="0"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
 }
 
 // === TXT (Qualtrics Advanced Format) ===

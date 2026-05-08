@@ -46,6 +46,7 @@ export default function ChoiceTaskTable({
           Block {row.block}
         </span>
       </div>
+      <ContextPreamble project={project} row={row} />
       <div className="p-5">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -123,5 +124,39 @@ export default function ChoiceTaskTable({
         </table>
       </div>
     </article>
+  )
+}
+
+function ContextPreamble({
+  project,
+  row,
+}: {
+  project: Project
+  row: DesignRow
+}) {
+  const cvars = project.contextVariables ?? []
+  if (cvars.length === 0) return null
+  const entries = cvars
+    .map((cv) => {
+      const lid = row.context?.[cv.id]
+      const level = cv.levels.find((l) => l.id === lid)
+      if (!level) return null
+      const text = level.displayValue ?? String(level.value)
+      return { cv, text }
+    })
+    .filter((e): e is { cv: typeof cvars[number]; text: string } => !!e)
+  if (entries.length === 0) return null
+  return (
+    <div className="px-5 py-2.5 bg-neutral-50/60 border-b border-neutral-100 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
+        Scenario
+      </span>
+      {entries.map(({ cv, text }) => (
+        <span key={cv.id} className="text-xs">
+          <span className="text-neutral-500">{cv.name}:</span>{' '}
+          <span className="text-neutral-900 font-medium">{text}</span>
+        </span>
+      ))}
+    </div>
   )
 }

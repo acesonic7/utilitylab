@@ -1,26 +1,26 @@
 {
   "SurveyEntry": {
-    "SurveyID": "SV_9JWhM3a7FlvmyPk",
+    "SurveyID": "SV_fZ2uAs9vFsJVwkc",
     "SurveyName": "Urban Commute Mode Choice (EU)",
     "SurveyDescription": "Stated-preference study of commuting decisions across four travel modes in a mid-size European city.",
-    "SurveyOwnerID": "UR_zn7f6UqUQyDMFop",
+    "SurveyOwnerID": "UR_Hb7apcvNZcr0nfH",
     "SurveyBrandID": "utilitylab",
     "DivisionID": null,
     "SurveyLanguage": "EN",
-    "SurveyActiveResponseSet": "RS_giQL95OCRkStqU2",
+    "SurveyActiveResponseSet": "RS_X1dfjPxxiUCRqS8",
     "SurveyStatus": "Inactive",
     "SurveyStartDate": "0000-00-00 00:00:00",
     "SurveyExpirationDate": "0000-00-00 00:00:00",
-    "SurveyCreationDate": "2026-05-08 08:23:25",
-    "CreatorID": "UR_zn7f6UqUQyDMFop",
-    "LastModified": "2026-05-08 08:23:25",
+    "SurveyCreationDate": "2026-05-08 09:04:48",
+    "CreatorID": "UR_Hb7apcvNZcr0nfH",
+    "LastModified": "2026-05-08 09:04:48",
     "LastAccessed": "0000-00-00 00:00:00",
     "LastActivated": "0000-00-00 00:00:00",
     "Deleted": null
   },
   "SurveyElements": [
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "BL",
       "PrimaryAttribute": "Survey Blocks",
       "SecondaryAttribute": null,
@@ -29,7 +29,7 @@
         {
           "Type": "Standard",
           "Description": "Block 1",
-          "ID": "BL_Dv3i9SvWRqdhvBj",
+          "ID": "BL_q7GDyxa3Yuyajuu",
           "BlockElements": [
             {
               "Type": "Question",
@@ -48,7 +48,7 @@
         {
           "Type": "Standard",
           "Description": "Block 2",
-          "ID": "BL_OcWUzrf5Fwyu1bf",
+          "ID": "BL_iXy4APMUpth3jjt",
           "BlockElements": [
             {
               "Type": "Question",
@@ -67,31 +67,31 @@
       ]
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "FL",
       "PrimaryAttribute": "Survey Flow",
       "SecondaryAttribute": null,
       "TertiaryAttribute": null,
       "Payload": {
         "Type": "Root",
-        "FlowID": "FL_WPlYcbKn",
+        "FlowID": "FL_lF7BpKrg",
         "Flow": [
           {
             "Type": "BlockRandomizer",
-            "FlowID": "FL_ZeZ6Ho4M",
+            "FlowID": "FL_nQEiBwgC",
             "SubSet": "1",
             "EvenPresentation": true,
             "Flow": [
               {
                 "Type": "Standard",
-                "ID": "BL_Dv3i9SvWRqdhvBj",
-                "FlowID": "FL_8XHHbkIM",
+                "ID": "BL_q7GDyxa3Yuyajuu",
+                "FlowID": "FL_AwY4sNlj",
                 "Autofill": []
               },
               {
                 "Type": "Standard",
-                "ID": "BL_OcWUzrf5Fwyu1bf",
-                "FlowID": "FL_kcHQpB9o",
+                "ID": "BL_iXy4APMUpth3jjt",
+                "FlowID": "FL_VwWSB9Id",
                 "Autofill": []
               }
             ]
@@ -103,7 +103,7 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SO",
       "PrimaryAttribute": "Survey Options",
       "SecondaryAttribute": null,
@@ -115,13 +115,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID1",
       "SecondaryAttribute": "Choice task 1 (Block 1)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>45 min</td><td>30 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Medium</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Sunny &middot; <strong>Travel purpose:</strong> Commuting</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>45 min</td><td>30 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Medium</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_1_1",
         "QuestionType": "MC",
         "Selector": "SAVR",
@@ -161,13 +161,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID2",
       "SecondaryAttribute": "Choice task 2 (Block 1)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>30 min</td><td>15 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Medium</td><td>Low</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Cloudy &middot; <strong>Travel purpose:</strong> Leisure</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>30 min</td><td>15 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Medium</td><td>Low</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_1_2",
         "QuestionType": "MC",
         "Selector": "SAVR",
@@ -207,13 +207,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID3",
       "SecondaryAttribute": "Choice task 3 (Block 1)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>15 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Medium</td><td>High</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Rainy &middot; <strong>Travel purpose:</strong> Shopping</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>15 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Medium</td><td>High</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_1_3",
         "QuestionType": "MC",
         "Selector": "SAVR",
@@ -253,13 +253,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID4",
       "SecondaryAttribute": "Choice task 4 (Block 2)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>15 min</td><td>30 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Low</td><td>Medium</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Sunny &middot; <strong>Travel purpose:</strong> Leisure</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>15 min</td><td>30 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Low</td><td>Medium</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_2_4",
         "QuestionType": "MC",
         "Selector": "SAVR",
@@ -299,13 +299,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID5",
       "SecondaryAttribute": "Choice task 5 (Block 2)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>30 min</td><td>15 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Low</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Cloudy &middot; <strong>Travel purpose:</strong> Shopping</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>30 min</td><td>15 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Low</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_2_5",
         "QuestionType": "MC",
         "Selector": "SAVR",
@@ -345,13 +345,13 @@
       }
     },
     {
-      "SurveyID": "SV_9JWhM3a7FlvmyPk",
+      "SurveyID": "SV_fZ2uAs9vFsJVwkc",
       "Element": "SQ",
       "PrimaryAttribute": "QID6",
       "SecondaryAttribute": "Choice task 6 (Block 2)",
       "TertiaryAttribute": null,
       "Payload": {
-        "QuestionText": "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>45 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Low</td><td>High</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
+        "QuestionText": "<p style=\"margin:0 0 0.5em 0;color:#555;\"><strong>Weather:</strong> Rainy &middot; <strong>Travel purpose:</strong> Commuting</p><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>45 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Low</td><td>High</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>",
         "DataExportTag": "Q_2_6",
         "QuestionType": "MC",
         "Selector": "SAVR",

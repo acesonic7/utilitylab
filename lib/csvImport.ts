@@ -6,7 +6,7 @@ export type ParsedCsv = {
   rows: string[][]
 }
 
-export type ColumnRole = 'task' | 'block' | 'cell' | 'ignore'
+export type ColumnRole = 'task' | 'block' | 'cell' | 'context' | 'ignore'
 export type MatchMode = 'value' | 'index'
 
 export type DraftMapping = {
@@ -14,6 +14,7 @@ export type DraftMapping = {
   role: ColumnRole
   alternativeId?: string
   attributeId?: string
+  contextVariableId?: string
   matchMode?: MatchMode
   sampleValues: string[]
 }
@@ -63,9 +64,34 @@ export function autoDetectMapping(parsed: ParsedCsv, project: Project): DraftMap
     }
 
     const headerTokens = tokens(header)
+
+    // Scenario context: column whose tokens match a context variable's id/name
+    // and which doesn't reference any alternative (otherwise it would be a cell).
+    const contextMatch = (project.contextVariables ?? []).find((cv) => {
+      const cvTokens = [...tokens(cv.id), ...tokens(cv.name)]
+      return cvTokens.some((t) => headerTokens.includes(t))
+    })
     const altMatch = project.alternatives.find((a) =>
       altTokens(a).some((t) => headerTokens.includes(t)),
     )
+
+    if (contextMatch && !altMatch) {
+      return {
+        csvColumn: header,
+        role: 'context',
+        contextVariableId: contextMatch.id,
+        matchMode: detectMatchMode(
+          {
+            ...contextMatch,
+            appliesTo: 'all',
+            position: 0,
+          } as Attribute,
+          sample,
+        ),
+        sampleValues: sample,
+      }
+    }
+
     const attrMatch = project.attributes.find((a) =>
       attrTokens(a).some((t) => headerTokens.includes(t)),
     )
@@ -190,6 +216,33 @@ export function validateMappings(
     }
   }
 
+  // Validate context mappings
+  const contextMappings = mappings.filter((m) => m.role === 'context')
+  for (const m of contextMappings) {
+    if (!m.contextVariableId) {
+      errors.push(`Column "${m.csvColumn}" is set to Context but missing variable`)
+      continue
+    }
+    const cv = (project.contextVariables ?? []).find(
+      (c) => c.id === m.contextVariableId,
+    )
+    if (!cv) continue
+    const cvAsAttr = { ...cv, appliesTo: 'all' as const, position: 0 } as Attribute
+    let total = 0
+    let unmatched = 0
+    for (const row of parsed.rows) {
+      const v = row[headerIndex[m.csvColumn]] ?? ''
+      if (v === '') continue
+      total++
+      if (!matchLevel(cvAsAttr, v, m.matchMode ?? 'value')) unmatched++
+    }
+    if (unmatched > 0) {
+      warnings.push(
+        `Column "${m.csvColumn}": ${unmatched} of ${total} values do not match any level on context "${cv.name}"`,
+      )
+    }
+  }
+
   return { errors, warnings }
 }
 
@@ -202,6 +255,9 @@ export function buildDesign(plan: ImportPlan, project: Project): ImportResult {
   const blockCol = mappings.find((m) => m.role === 'block')
   const cellCols = mappings.filter(
     (m) => m.role === 'cell' && m.alternativeId && m.attributeId,
+  )
+  const contextCols = mappings.filter(
+    (m) => m.role === 'context' && m.contextVariableId,
   )
 
   const warnings: string[] = []
@@ -228,7 +284,27 @@ export function buildDesign(plan: ImportPlan, project: Project): ImportResult {
       }
       cells[cellKey(cm.alternativeId!, cm.attributeId!)] = level.id
     }
-    designRows.push({ taskId, block, cells })
+
+    const context: Record<string, string> = {}
+    for (const cm of contextCols) {
+      const cv = (project.contextVariables ?? []).find(
+        (c) => c.id === cm.contextVariableId,
+      )
+      if (!cv) continue
+      const csvVal = csvRow[headerIndex[cm.csvColumn]] ?? ''
+      if (csvVal === '') continue
+      const cvAsAttr = { ...cv, appliesTo: 'all' as const, position: 0 } as Attribute
+      const level = matchLevel(cvAsAttr, csvVal, cm.matchMode ?? 'value')
+      if (!level) {
+        warnings.push(
+          `Choice task ${taskId}: context value "${csvVal}" in column "${cm.csvColumn}" did not match any level of "${cv.name}"`,
+        )
+        continue
+      }
+      context[cv.id] = level.id
+    }
+
+    designRows.push({ taskId, block, cells, context })
   })
 
   const numBlocks = Math.max(1, ...designRows.map((r) => r.block))
@@ -246,6 +322,7 @@ export function buildDesign(plan: ImportPlan, project: Project): ImportResult {
         role: m.role,
         alternativeId: m.alternativeId,
         attributeId: m.attributeId,
+        contextVariableId: m.contextVariableId,
       })),
       rawHeaders: parsed.headers,
     },
@@ -262,6 +339,9 @@ export function generateTemplateCsv(project: Project): string {
       if (!applies) continue
       headers.push(`${alt.id}_${attr.id}`)
     }
+  }
+  for (const cv of project.contextVariables ?? []) {
+    headers.push(cv.id)
   }
   return headers.join(',') + '\n'
 }

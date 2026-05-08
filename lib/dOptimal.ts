@@ -202,6 +202,19 @@ function randomCells(
   return cells
 }
 
+function randomContext(
+  project: Project,
+  rng: () => number,
+): Record<string, string> {
+  const context: Record<string, string> = {}
+  for (const cv of project.contextVariables ?? []) {
+    if (cv.levels.length === 0) continue
+    const idx = Math.floor(rng() * cv.levels.length)
+    context[cv.id] = cv.levels[idx].id
+  }
+  return context
+}
+
 const MAX_CONSTRAINT_RETRIES = 200
 
 function randomRows(
@@ -226,7 +239,12 @@ function randomRows(
         cells = randomCells(project, rng)
       }
     }
-    rows.push({ taskId: i + 1, block: (i % numBlocks) + 1, cells })
+    rows.push({
+      taskId: i + 1,
+      block: (i % numBlocks) + 1,
+      cells,
+      context: randomContext(project, rng),
+    })
   }
   return rows
 }

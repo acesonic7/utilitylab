@@ -106,7 +106,14 @@ function generateRow(
       cells[cellKey(alt.id, attr.id)] = attr.levels[idx].id
     }
   }
-  return { taskId, block, cells }
+  // Scenario context: one value per task, applied uniformly across alts.
+  const context: Record<string, string> = {}
+  for (const cv of project.contextVariables ?? []) {
+    if (cv.levels.length === 0) continue
+    const idx = Math.floor(rng() * cv.levels.length)
+    context[cv.id] = cv.levels[idx].id
+  }
+  return { taskId, block, cells, context }
 }
 
 const MAX_CONSTRAINT_RETRIES = 200

@@ -85,6 +85,31 @@ export const travelModeExample: Project = {
     },
   ],
 
+  contextVariables: [
+    {
+      id: 'weather',
+      name: 'Weather',
+      type: 'categorical',
+      position: 0,
+      levels: [
+        { id: 'wx_sunny', value: 'Sunny', position: 0 },
+        { id: 'wx_cloudy', value: 'Cloudy', position: 1 },
+        { id: 'wx_rainy', value: 'Rainy', position: 2 },
+      ],
+    },
+    {
+      id: 'purpose',
+      name: 'Travel purpose',
+      type: 'categorical',
+      position: 1,
+      levels: [
+        { id: 'pp_commute', value: 'Commuting', position: 0 },
+        { id: 'pp_leisure', value: 'Leisure', position: 1 },
+        { id: 'pp_shop', value: 'Shopping', position: 2 },
+      ],
+    },
+  ],
+
   design: {
     source: 'csv',
     uploadedAt: '2026-04-27T10:05:00Z',
@@ -105,6 +130,8 @@ export const travelModeExample: Project = {
       'bike_comfort',
       'walk_travel_time',
       'walk_comfort',
+      'weather',
+      'purpose',
     ],
     mapping: [
       { csvColumn: 'choice_task', role: 'task' },
@@ -120,6 +147,8 @@ export const travelModeExample: Project = {
       { csvColumn: 'bike_comfort', role: 'cell', alternativeId: 'bike', attributeId: 'comfort' },
       { csvColumn: 'walk_travel_time', role: 'cell', alternativeId: 'walk', attributeId: 'travel_time' },
       { csvColumn: 'walk_comfort', role: 'cell', alternativeId: 'walk', attributeId: 'comfort' },
+      { csvColumn: 'weather', role: 'context', contextVariableId: 'weather' },
+      { csvColumn: 'purpose', role: 'context', contextVariableId: 'purpose' },
     ],
     rows: [
       {
@@ -138,6 +167,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_45',
           'walk.comfort': 'comf_low',
         },
+        context: { weather: 'wx_sunny', purpose: 'pp_commute' },
       },
       {
         taskId: 2,
@@ -155,6 +185,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_30',
           'walk.comfort': 'comf_high',
         },
+        context: { weather: 'wx_cloudy', purpose: 'pp_leisure' },
       },
       {
         taskId: 3,
@@ -172,6 +203,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_15',
           'walk.comfort': 'comf_med',
         },
+        context: { weather: 'wx_rainy', purpose: 'pp_shop' },
       },
       {
         taskId: 4,
@@ -189,6 +221,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_30',
           'walk.comfort': 'comf_med',
         },
+        context: { weather: 'wx_sunny', purpose: 'pp_leisure' },
       },
       {
         taskId: 5,
@@ -206,6 +239,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_45',
           'walk.comfort': 'comf_low',
         },
+        context: { weather: 'wx_cloudy', purpose: 'pp_shop' },
       },
       {
         taskId: 6,
@@ -223,6 +257,7 @@ export const travelModeExample: Project = {
           'walk.travel_time': 'tt_15',
           'walk.comfort': 'comf_high',
         },
+        context: { weather: 'wx_rainy', purpose: 'pp_commute' },
       },
     ],
   },

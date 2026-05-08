@@ -11,6 +11,7 @@ import Section from './Section'
 import ProjectInfoEditor from './editors/ProjectInfoEditor'
 import AlternativesEditor from './editors/AlternativesEditor'
 import AttributesEditor from './editors/AttributesEditor'
+import ContextVariablesEditor from './editors/ContextVariablesEditor'
 import ConstraintsEditor from './editors/ConstraintsEditor'
 import DesignSource from './DesignSource'
 import ChoiceTaskTable from './ChoiceTaskTable'
@@ -91,6 +92,7 @@ export default function Designer() {
             <ProjectInfoEditor project={project} setProject={setProject} />
             <AlternativesEditor project={project} setProject={setProject} />
             <AttributesEditor project={project} setProject={setProject} />
+            <ContextVariablesEditor project={project} setProject={setProject} />
             <ConstraintsEditor project={project} setProject={setProject} />
           </div>
         </Section>

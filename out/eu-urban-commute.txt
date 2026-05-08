@@ -4,7 +4,7 @@
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_1_1]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>45 min</td><td>30 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Medium</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Sunny &middot; <strong>Travel purpose:</strong> Commuting</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>45 min</td><td>30 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Medium</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
@@ -13,7 +13,7 @@ Walking
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_1_2]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>30 min</td><td>15 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Medium</td><td>Low</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Cloudy &middot; <strong>Travel purpose:</strong> Leisure</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>30 min</td><td>15 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Medium</td><td>Low</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
@@ -22,7 +22,7 @@ Walking
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_1_3]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>15 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Medium</td><td>High</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Rainy &middot; <strong>Travel purpose:</strong> Shopping</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>15 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Medium</td><td>High</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
@@ -33,7 +33,7 @@ Walking
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_2_4]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>15 min</td><td>30 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Low</td><td>Medium</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Sunny &middot; <strong>Travel purpose:</strong> Leisure</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>30 min</td><td>15 min</td><td>30 min</td><td>30 min</td></tr><tr><th>Cost (EUR)</th><td>€6.00</td><td>€1.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>High</td><td>Low</td><td>Medium</td><td>Medium</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 5 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
@@ -42,7 +42,7 @@ Walking
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_2_5]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>30 min</td><td>15 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Low</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Cloudy &middot; <strong>Travel purpose:</strong> Shopping</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>45 min</td><td>30 min</td><td>15 min</td><td>45 min</td></tr><tr><th>Cost (EUR)</th><td>€3.00</td><td>€6.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Medium</td><td>High</td><td>Low</td><td>Low</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 20 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
@@ -51,7 +51,7 @@ Walking
 
 [[Question:MC:SingleAnswer]]
 [[ID:Q_2_6]]
-<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>45 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Low</td><td>High</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>
+<p style="margin:0 0 0.5em 0;color:#555;"><strong>Weather:</strong> Rainy &middot; <strong>Travel purpose:</strong> Commuting</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr><th></th><th>Car</th><th>Public transport</th><th>Bike</th><th>Walking</th></tr></thead><tbody><tr><th>Travel time (min)</th><td>15 min</td><td>45 min</td><td>45 min</td><td>15 min</td></tr><tr><th>Cost (EUR)</th><td>€1.00</td><td>€3.00</td><td>—</td><td>—</td></tr><tr><th>Comfort</th><td>Low</td><td>Low</td><td>High</td><td>High</td></tr><tr><th>Service frequency (min)</th><td>—</td><td>Every 10 min</td><td>—</td><td>—</td></tr></tbody></table>
 [[Choices]]
 Car
 Public transport
