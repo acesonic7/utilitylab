@@ -11,6 +11,19 @@ export type Level = {
   position: number
 }
 
+export type PivotMode = 'none' | 'absolute' | 'relative'
+
+export type AttributePivot = {
+  mode: PivotMode
+  // Reference value used to render resolved values in our preview and the
+  // default static export. The wiring guide explains how to swap this for a
+  // per-respondent value via piped text in Qualtrics / LimeSurvey.
+  previewReference?: number
+  // Placeholder token surfaced in the wiring guide, e.g. "REF_COST". Defaults
+  // to "REF_<ATTR_ID>" upper-cased if not set.
+  referenceToken?: string
+}
+
 export type Attribute = {
   id: string
   name: string
@@ -25,6 +38,9 @@ export type Attribute = {
   // Length must match the attribute's parameter count; missing/short arrays
   // are zero-padded.
   priors?: number[]
+  // Static pivot configuration (numeric attributes only). Levels are
+  // interpreted as deltas from / multipliers of `previewReference`.
+  pivot?: AttributePivot
 }
 
 export type Alternative = {

@@ -49,10 +49,19 @@ export const travelModeExample: Project = {
       preferenceDirection: 'lower',
       appliesTo: ['car', 'pt'],
       position: 1,
+      // Pivoted: levels are multipliers of each respondent's own usual cost.
+      // Preview-time we resolve against €4.00 so choice tasks render meaningful
+      // numbers; the wiring guide explains how to substitute a per-respondent
+      // value via Qualtrics piped text or LimeSurvey Expression Manager.
+      pivot: {
+        mode: 'relative',
+        previewReference: 4.0,
+        referenceToken: 'REF_COST',
+      },
       levels: [
-        { id: 'cost_1', value: 1.0, displayValue: '€1.00', position: 0 },
-        { id: 'cost_3', value: 3.0, displayValue: '€3.00', position: 1 },
-        { id: 'cost_6', value: 6.0, displayValue: '€6.00', position: 2 },
+        { id: 'cost_1', value: 0.5, position: 0 },
+        { id: 'cost_3', value: 1.0, position: 1 },
+        { id: 'cost_6', value: 1.5, position: 2 },
       ],
     },
     {

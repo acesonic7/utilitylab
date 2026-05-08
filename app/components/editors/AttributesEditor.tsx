@@ -6,6 +6,7 @@ import type {
   Attribute,
   Level,
   AttributeType,
+  PivotMode,
   PreferenceDirection,
 } from '@/lib/schema'
 import { createAttribute, createLevel } from '@/lib/defaults'
@@ -288,10 +289,105 @@ function AttributeCard({
             </Field>
           )}
 
+          {attribute.type === 'numeric' && (
+            <PivotEditor attribute={attribute} onUpdate={onUpdate} />
+          )}
+
           <LevelsEditor attribute={attribute} onUpdate={onUpdate} />
         </div>
       )}
     </li>
+  )
+}
+
+function PivotEditor({
+  attribute,
+  onUpdate,
+}: {
+  attribute: Attribute
+  onUpdate: (changes: Partial<Attribute>) => void
+}) {
+  const pivot = attribute.pivot
+  const mode: PivotMode = pivot?.mode ?? 'none'
+  const isPivoted = mode !== 'none'
+
+  const setMode = (newMode: PivotMode) => {
+    if (newMode === 'none') {
+      onUpdate({ pivot: { mode: 'none' } })
+    } else {
+      onUpdate({
+        pivot: {
+          mode: newMode,
+          previewReference: pivot?.previewReference ?? 1,
+          referenceToken: pivot?.referenceToken ?? `REF_${attribute.id.toUpperCase()}`,
+        },
+      })
+    }
+  }
+
+  return (
+    <Field
+      label="Pivot mode"
+      hint="Treat levels as deltas/multipliers of a per-respondent reference value (numeric attributes only)."
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value as PivotMode)}
+          className={inputClsCompact}
+          style={{ width: 'auto' }}
+        >
+          <option value="none">None — levels are absolute values</option>
+          <option value="absolute">Delta from reference (levels are deltas)</option>
+          <option value="relative">Multiplier of reference (levels are multipliers)</option>
+        </select>
+      </div>
+      {isPivoted && (
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <Field
+            label="Preview reference"
+            hint="Used to render resolved values in preview & export."
+          >
+            <input
+              type="number"
+              step="any"
+              value={pivot?.previewReference ?? ''}
+              onChange={(e) =>
+                onUpdate({
+                  pivot: {
+                    ...(pivot ?? { mode }),
+                    mode,
+                    previewReference: e.target.value === '' ? undefined : Number(e.target.value),
+                  },
+                })
+              }
+              placeholder={mode === 'relative' ? 'e.g. 5.0' : 'e.g. 30'}
+              className={inputClsCompact}
+            />
+          </Field>
+          <Field
+            label="Reference token"
+            hint="Placeholder name used in the wiring guide."
+          >
+            <input
+              type="text"
+              value={pivot?.referenceToken ?? ''}
+              onChange={(e) =>
+                onUpdate({
+                  pivot: {
+                    ...(pivot ?? { mode }),
+                    mode,
+                    referenceToken: e.target.value || undefined,
+                  },
+                })
+              }
+              placeholder={`REF_${attribute.id.toUpperCase()}`}
+              className={`${inputClsCompact} font-mono`}
+            />
+          </Field>
+        </div>
+      )}
+    </Field>
   )
 }
 

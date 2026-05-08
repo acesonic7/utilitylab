@@ -6,6 +6,7 @@ import type {
   Level,
 } from '@/lib/schema'
 import { cellKey } from '@/lib/validation'
+import { levelDisplayText } from '@/lib/format'
 
 function getLevel(attr: Attribute, levelId: string | undefined): Level | undefined {
   if (!levelId) return undefined
@@ -17,11 +18,7 @@ function appliesToAlt(attr: Attribute, altId: string): boolean {
 }
 
 function levelText(attr: Attribute, levelId: string | undefined): string {
-  const l = getLevel(attr, levelId)
-  if (!l) return '—'
-  if (l.displayValue) return l.displayValue
-  if (attr.unit) return `${l.value} ${attr.unit}`
-  return String(l.value)
+  return levelDisplayText(attr, getLevel(attr, levelId))
 }
 
 export default function ChoiceTaskTable({

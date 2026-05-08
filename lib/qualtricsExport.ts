@@ -1,5 +1,7 @@
 import type { Project, DesignRow, Alternative, Attribute } from './schema'
 import { cellKey } from './validation'
+import { levelDisplayText } from './format'
+import { buildTxtCommentBlock } from './wiringGuide'
 
 function getLevel(attr: Attribute, levelId: string | undefined) {
   if (!levelId) return undefined
@@ -11,11 +13,7 @@ function appliesToAlt(attr: Attribute, altId: string): boolean {
 }
 
 function levelText(attr: Attribute, levelId: string | undefined): string {
-  const l = getLevel(attr, levelId)
-  if (!l) return '—'
-  if (l.displayValue) return l.displayValue
-  if (attr.unit) return `${l.value} ${attr.unit}`
-  return String(l.value)
+  return levelDisplayText(attr, getLevel(attr, levelId))
 }
 
 function escapeHtml(s: string): string {
@@ -82,6 +80,13 @@ export function exportTxt(project: Project): string {
     .filter((a): a is Alternative => !!a)
 
   const lines: string[] = ['[[AdvancedFormat]]', '']
+
+  // If any attribute is pivoted, prepend a Description Block reminding the
+  // importer to wire up piped text per the project's wiring guide.
+  const commentBlock = buildTxtCommentBlock(project)
+  if (commentBlock) {
+    lines.push('[[Block:Setup notes]]', '', commentBlock)
+  }
 
   for (let b = 1; b <= project.design.numBlocks; b++) {
     lines.push(`[[Block:Block ${b}]]`, '')
