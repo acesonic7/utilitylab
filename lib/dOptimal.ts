@@ -2,6 +2,7 @@ import type { Project, Attribute, DesignRow } from './schema'
 import { cellKey } from './validation'
 import { det, zeros, dot } from './linalg'
 import { firstViolation } from './constraints'
+import { findLevelInAttr, getLevelsForAlt } from './levelLookup'
 
 // ── encoding ────────────────────────────────────────────────────────────────
 // Effects coding with the FIRST level (position 0) as the reference.
@@ -45,7 +46,7 @@ export function paramLayout(project: Project): ParamLayout {
 }
 
 function encodeLevel(attr: Attribute, levelId: string): number[] {
-  const lvl = attr.levels.find((l) => l.id === levelId)
+  const lvl = findLevelInAttr(attr, levelId)
   if (!lvl) return new Array(paramCount(attr)).fill(0)
   if (attr.type === 'numeric') return [Number(lvl.value)]
   const K = attr.levels.length
@@ -194,9 +195,10 @@ function randomCells(
     for (const attr of project.attributes) {
       const applies = attr.appliesTo === 'all' || attr.appliesTo.includes(alt.id)
       if (!applies) continue
-      if (attr.levels.length === 0) continue
-      const idx = Math.floor(rng() * attr.levels.length)
-      cells[cellKey(alt.id, attr.id)] = attr.levels[idx].id
+      const levels = getLevelsForAlt(attr, alt.id)
+      if (levels.length === 0) continue
+      const idx = Math.floor(rng() * levels.length)
+      cells[cellKey(alt.id, attr.id)] = levels[idx].id
     }
   }
   return cells
@@ -277,7 +279,7 @@ function federovImprove(
           if (!currentLevelId) continue
           let bestNewD = curD
           let bestNewLevel: string | null = null
-          for (const lvl of attr.levels) {
+          for (const lvl of getLevelsForAlt(attr, alt.id)) {
             if (lvl.id === currentLevelId) continue
             row.cells[k] = lvl.id
             // Skip swap candidates that introduce a constraint violation

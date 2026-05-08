@@ -8,6 +8,7 @@ import type {
 import { cellKey } from './validation'
 import { dOptimalSearch } from './dOptimal'
 import { firstViolation } from './constraints'
+import { findLevelInAttr, getLevelsForAlt } from './levelLookup'
 
 export const defaultScoreWeights: ScoreWeights = {
   balance: 1,
@@ -59,7 +60,7 @@ function appliesToAlt(attr: Attribute, altId: string): boolean {
 }
 
 function levelScalar(attr: Attribute, levelId: string): number {
-  const lvl = attr.levels.find((l) => l.id === levelId)
+  const lvl = findLevelInAttr(attr, levelId)
   if (!lvl) return 0
   if (attr.type === 'numeric') return Number(lvl.value)
   return lvl.position
@@ -101,9 +102,10 @@ function generateRow(
   for (const alt of altsActive) {
     for (const attr of project.attributes) {
       if (!appliesToAlt(attr, alt.id)) continue
-      if (attr.levels.length === 0) continue
-      const idx = Math.floor(rng() * attr.levels.length)
-      cells[cellKey(alt.id, attr.id)] = attr.levels[idx].id
+      const levels = getLevelsForAlt(attr, alt.id)
+      if (levels.length === 0) continue
+      const idx = Math.floor(rng() * levels.length)
+      cells[cellKey(alt.id, attr.id)] = levels[idx].id
     }
   }
   // Scenario context: one value per task, applied uniformly across alts.
@@ -167,25 +169,48 @@ function computeMetrics(
 ): GenerationResult['metrics'] {
   const altsActive = project.alternatives.filter((a) => !a.isOptOut)
 
-  // Balance: max % deviation across all attributes
+  // Balance: max % deviation per (alt, attr) when overrides exist; aggregated
+  // across applicable alts when not.
   let maxBal = 0
   for (const attr of project.attributes) {
     const applicable = altsActive.filter((a) => appliesToAlt(attr, a.id))
-    if (applicable.length === 0 || attr.levels.length < 2) continue
-    const counts: Record<string, number> = {}
-    for (const l of attr.levels) counts[l.id] = 0
-    for (const row of rows) {
+    if (applicable.length === 0) continue
+    const hasOverrides =
+      !!attr.levelsByAlternative && Object.keys(attr.levelsByAlternative).length > 0
+    if (hasOverrides) {
       for (const alt of applicable) {
-        const lid = row.cells[cellKey(alt.id, attr.id)]
-        if (lid && lid in counts) counts[lid]++
+        const altLevels = getLevelsForAlt(attr, alt.id)
+        if (altLevels.length < 2) continue
+        const counts: Record<string, number> = {}
+        for (const l of altLevels) counts[l.id] = 0
+        for (const row of rows) {
+          const lid = row.cells[cellKey(alt.id, attr.id)]
+          if (lid && lid in counts) counts[lid]++
+        }
+        const ideal = rows.length / altLevels.length
+        if (ideal === 0) continue
+        for (const id in counts) {
+          const dev = (Math.abs(counts[id] - ideal) / ideal) * 100
+          if (dev > maxBal) maxBal = dev
+        }
       }
-    }
-    const totalSlots = rows.length * applicable.length
-    const ideal = totalSlots / attr.levels.length
-    if (ideal === 0) continue
-    for (const id in counts) {
-      const dev = (Math.abs(counts[id] - ideal) / ideal) * 100
-      if (dev > maxBal) maxBal = dev
+    } else {
+      if (attr.levels.length < 2) continue
+      const counts: Record<string, number> = {}
+      for (const l of attr.levels) counts[l.id] = 0
+      for (const row of rows) {
+        for (const alt of applicable) {
+          const lid = row.cells[cellKey(alt.id, attr.id)]
+          if (lid && lid in counts) counts[lid]++
+        }
+      }
+      const totalSlots = rows.length * applicable.length
+      const ideal = totalSlots / attr.levels.length
+      if (ideal === 0) continue
+      for (const id in counts) {
+        const dev = (Math.abs(counts[id] - ideal) / ideal) * 100
+        if (dev > maxBal) maxBal = dev
+      }
     }
   }
 

@@ -32,6 +32,11 @@ export type Attribute = {
   displayFormat?: DisplayFormat
   preferenceDirection?: PreferenceDirection
   levels: Level[]
+  // Per-alternative level overrides (numeric attributes only in v1). When an
+  // alternative has its own level set here, it replaces the default `levels`
+  // for that alternative. Level IDs must be unique across the entire attribute
+  // (default + all overrides) so single-ID lookups are unambiguous.
+  levelsByAlternative?: Record<string, Level[]>
   appliesTo: 'all' | string[]
   position: number
   // D-optimal priors: one entry per parameter (numeric/boolean=1, categorical=K-1).

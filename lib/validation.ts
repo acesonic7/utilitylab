@@ -1,4 +1,5 @@
 import type { Project, Attribute, Level, ValidationConfig } from './schema'
+import { findLevelInAttr } from './levelLookup'
 
 export const defaultValidationConfig: ValidationConfig = {
   dominance: { enabled: true },
@@ -32,7 +33,7 @@ function appliesToAlt(attr: Attribute, altId: string): boolean {
 
 function getLevel(attr: Attribute, levelId: string | undefined): Level | undefined {
   if (!levelId) return undefined
-  return attr.levels.find((l) => l.id === levelId)
+  return findLevelInAttr(attr, levelId)
 }
 
 function getScalar(attr: Attribute, level: Level): number {
@@ -126,7 +127,54 @@ function checkBalance(project: Project, cfg: ValidationConfig['balance']): Findi
     const applicable = project.alternatives.filter(
       (a) => !a.isOptOut && appliesToAlt(attr, a.id),
     )
-    if (applicable.length === 0 || attr.levels.length < 2) continue
+    if (applicable.length === 0) continue
+    const hasOverrides =
+      !!attr.levelsByAlternative &&
+      Object.keys(attr.levelsByAlternative).length > 0
+
+    if (hasOverrides) {
+      // Per-(alt, attr) balance — different alts may use different level sets
+      for (const alt of applicable) {
+        const altLevels = attr.levelsByAlternative?.[alt.id] ?? attr.levels
+        if (altLevels.length < 2) continue
+        const counts = new Map<string, number>(altLevels.map((l) => [l.id, 0]))
+        for (const row of rows) {
+          const lid = row.cells[cellKey(alt.id, attr.id)]
+          if (lid && counts.has(lid)) counts.set(lid, counts.get(lid)! + 1)
+        }
+        const totalSlots = rows.length
+        const ideal = totalSlots / altLevels.length
+        const deviations = altLevels.map((l) => {
+          const actual = counts.get(l.id) ?? 0
+          const dev = ideal === 0 ? 0 : ((actual - ideal) / ideal) * 100
+          return {
+            levelId: l.id,
+            levelLabel: l.displayValue ?? String(l.value),
+            actual,
+            ideal,
+            deviationPct: dev,
+          }
+        })
+        const maxAbs = Math.max(...deviations.map((d) => Math.abs(d.deviationPct)))
+        if (maxAbs > cfg.maxDeviationPct) {
+          findings.push({
+            check: 'balance',
+            severity: 'warning',
+            message: `"${attr.name}" for "${alt.label}" is imbalanced (max deviation ${maxAbs.toFixed(1)}% > ${cfg.maxDeviationPct}%)`,
+            details: {
+              attributeId: attr.id,
+              alternativeId: alt.id,
+              deviations,
+              ideal,
+              totalSlots,
+            },
+          })
+        }
+      }
+      continue
+    }
+
+    if (attr.levels.length < 2) continue
     const counts = new Map<string, number>(attr.levels.map((l) => [l.id, 0]))
     for (const row of rows) {
       for (const alt of applicable) {

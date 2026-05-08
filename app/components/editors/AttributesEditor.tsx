@@ -10,6 +10,7 @@ import type {
   PreferenceDirection,
 } from '@/lib/schema'
 import { createAttribute, createLevel } from '@/lib/defaults'
+import { getLevelsForAlt, attrHasOverrides } from '@/lib/levelLookup'
 import { ChevronDown, ChevronRight, Pencil, Plus, XMark } from '../Icons'
 import Field, { inputCls, inputClsCompact } from './Field'
 
@@ -294,9 +295,206 @@ function AttributeCard({
           )}
 
           <LevelsEditor attribute={attribute} onUpdate={onUpdate} />
+
+          {attribute.type === 'numeric' && (
+            <PerAltOverridesEditor
+              project={project}
+              attribute={attribute}
+              onUpdate={onUpdate}
+            />
+          )}
         </div>
       )}
     </li>
+  )
+}
+
+function PerAltOverridesEditor({
+  project,
+  attribute,
+  onUpdate,
+}: {
+  project: Project
+  attribute: Attribute
+  onUpdate: (changes: Partial<Attribute>) => void
+}) {
+  const applicableAlts = project.alternatives.filter(
+    (a) =>
+      !a.isOptOut &&
+      (attribute.appliesTo === 'all' || attribute.appliesTo.includes(a.id)),
+  )
+  const overrides = attribute.levelsByAlternative ?? {}
+
+  const setOverride = (altId: string, levels: Level[] | null) => {
+    const next = { ...overrides }
+    if (levels === null) {
+      delete next[altId]
+    } else {
+      next[altId] = levels
+    }
+    onUpdate({
+      levelsByAlternative: Object.keys(next).length > 0 ? next : undefined,
+    })
+  }
+
+  const addOverride = (altId: string) => {
+    // Copy default levels with FRESH IDs so they're unique within the attribute
+    const copy: Level[] = attribute.levels.map((l, i) => ({
+      ...l,
+      id:
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `lv_${altId}_${i}_${Math.random().toString(36).slice(2, 8)}`,
+    }))
+    setOverride(altId, copy)
+  }
+
+  return (
+    <div className="rounded-lg ring-1 ring-neutral-200 bg-neutral-50/40 p-3 mt-3">
+      <div className="flex items-baseline justify-between mb-2">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+          Per-alternative ranges
+        </h4>
+        <span className="text-[11px] text-neutral-500">
+          {attrHasOverrides(attribute)
+            ? `${Object.keys(overrides).length} override${Object.keys(overrides).length !== 1 ? 's' : ''}`
+            : 'None — all alts share the default levels above'}
+        </span>
+      </div>
+      <p className="text-[11px] text-neutral-500 mb-3 leading-relaxed">
+        Optional. Override the level set for specific alternatives — useful when
+        modes operate at different scales (e.g. travel time for plane vs bike).
+      </p>
+      <ul className="space-y-2">
+        {applicableAlts.map((alt) => {
+          const override = overrides[alt.id]
+          const isOverridden = !!override
+          return (
+            <li
+              key={alt.id}
+              className={`rounded-md ring-1 p-2 ${isOverridden ? 'bg-white ring-neutral-300' : 'bg-white/60 ring-neutral-200/60'}`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-neutral-700 flex-1">
+                  {alt.label}
+                </span>
+                {isOverridden ? (
+                  <>
+                    <span className="text-[11px] text-neutral-500">
+                      {override.length} level{override.length !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={() => setOverride(alt.id, null)}
+                      className="text-xs px-2 py-0.5 rounded ring-1 ring-neutral-200 hover:ring-red-300 hover:bg-red-50/40 hover:text-red-700 transition"
+                      title="Drop this override; alt reverts to default levels"
+                    >
+                      Reset
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] text-neutral-400 italic">
+                      uses default
+                    </span>
+                    <button
+                      onClick={() => addOverride(alt.id)}
+                      disabled={attribute.levels.length === 0}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50 transition disabled:opacity-50"
+                    >
+                      <Plus size={10} />
+                      Add override
+                    </button>
+                  </>
+                )}
+              </div>
+              {isOverridden && (
+                <div className="mt-2">
+                  <PerAltLevelsEditor
+                    attribute={attribute}
+                    levels={override}
+                    onChange={(next) => setOverride(alt.id, next)}
+                  />
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+function PerAltLevelsEditor({
+  attribute,
+  levels,
+  onChange,
+}: {
+  attribute: Attribute
+  levels: Level[]
+  onChange: (next: Level[]) => void
+}) {
+  const updateLevel = (id: string, changes: Partial<Level>) => {
+    onChange(levels.map((l) => (l.id === id ? { ...l, ...changes } : l)))
+  }
+  const removeLevel = (id: string) => {
+    onChange(
+      levels.filter((l) => l.id !== id).map((l, i) => ({ ...l, position: i })),
+    )
+  }
+  const addLevel = () => {
+    const next = levels.length
+    const newId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `lv_${next}_${Math.random().toString(36).slice(2, 8)}`
+    onChange([...levels, { id: newId, value: next + 1, position: next }])
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {levels.map((l, i) => (
+        <div key={l.id} className="grid grid-cols-12 gap-1.5 items-center">
+          <span className="col-span-1 text-[11px] text-neutral-400 font-mono text-center tabular-nums">
+            {i + 1}
+          </span>
+          <input
+            type="number"
+            value={String(l.value)}
+            onChange={(e) =>
+              updateLevel(l.id, { value: Number(e.target.value) })
+            }
+            placeholder="value"
+            className={`${inputClsCompact} col-span-5`}
+          />
+          <input
+            type="text"
+            value={l.displayValue ?? ''}
+            onChange={(e) =>
+              updateLevel(l.id, {
+                displayValue: e.target.value || undefined,
+              })
+            }
+            placeholder={attribute.unit ? `e.g. "${l.value} ${attribute.unit}"` : 'display label'}
+            className={`${inputClsCompact} col-span-5`}
+          />
+          <button
+            onClick={() => removeLevel(l.id)}
+            disabled={levels.length <= 2}
+            className="col-span-1 text-neutral-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed p-1 rounded transition justify-self-center"
+            aria-label="Remove level"
+          >
+            <XMark size={12} />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={addLevel}
+        className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 mt-1 rounded ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50 transition"
+      >
+        <Plus size={10} />
+        Add level
+      </button>
+    </div>
   )
 }
 

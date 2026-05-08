@@ -1,6 +1,7 @@
 'use client'
 
 import type { Project, Constraint } from '@/lib/schema'
+import { getLevelsForAlt } from '@/lib/levelLookup'
 import { Plus, XMark } from '../Icons'
 
 function genId(): string {
@@ -212,7 +213,12 @@ function ConstraintCard({
                 className="bg-white rounded px-2 py-1 ring-1 ring-neutral-200 hover:ring-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition flex-1 min-w-0"
                 disabled={!attr}
               >
-                {attr?.levels.map((l) => (
+                {(attr
+                  ? c.alternativeId === 'all'
+                    ? attr.levels
+                    : getLevelsForAlt(attr, c.alternativeId)
+                  : []
+                ).map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.displayValue ?? String(l.value)}
                   </option>

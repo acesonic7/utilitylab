@@ -1,11 +1,12 @@
 import type { Project, DesignRow, Alternative, Attribute } from './schema'
 import { cellKey } from './validation'
 import { levelDisplayText } from './format'
+import { findLevelInAttr } from './levelLookup'
 import { buildTxtCommentBlock } from './wiringGuide'
 
 function getLevel(attr: Attribute, levelId: string | undefined) {
   if (!levelId) return undefined
-  return attr.levels.find((l) => l.id === levelId)
+  return findLevelInAttr(attr, levelId)
 }
 
 function appliesToAlt(attr: Attribute, altId: string): boolean {

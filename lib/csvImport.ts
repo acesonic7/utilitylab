@@ -1,5 +1,6 @@
 import type { Project, Attribute, Level, DesignRow, Design } from './schema'
 import { cellKey } from './validation'
+import { getLevelsForAlt } from './levelLookup'
 
 export type ParsedCsv = {
   headers: string[]
@@ -134,14 +135,17 @@ export function matchLevel(
   attr: Attribute,
   csvValue: string,
   mode: MatchMode,
+  altId?: string,
 ): Level | null {
   const trimmed = csvValue.trim()
+  // Use the per-alt override level set when available, else the default.
+  const levels = altId ? getLevelsForAlt(attr, altId) : attr.levels
   if (mode === 'index') {
     const idx = parseInt(trimmed, 10) - 1
-    if (idx >= 0 && idx < attr.levels.length) return attr.levels[idx]
+    if (idx >= 0 && idx < levels.length) return levels[idx]
     return null
   }
-  for (const level of attr.levels) {
+  for (const level of levels) {
     if (attr.type === 'numeric') {
       const a = Number(level.value)
       const b = Number(trimmed)
@@ -207,7 +211,7 @@ export function validateMappings(
       const v = row[headerIndex[m.csvColumn]] ?? ''
       if (v === '') continue
       total++
-      if (!matchLevel(attr, v, m.matchMode ?? 'value')) unmatched++
+      if (!matchLevel(attr, v, m.matchMode ?? 'value', m.alternativeId)) unmatched++
     }
     if (unmatched > 0) {
       warnings.push(
@@ -275,7 +279,7 @@ export function buildDesign(plan: ImportPlan, project: Project): ImportResult {
       if (!attr) continue
       const csvVal = csvRow[headerIndex[cm.csvColumn]] ?? ''
       if (csvVal === '') continue
-      const level = matchLevel(attr, csvVal, cm.matchMode ?? 'value')
+      const level = matchLevel(attr, csvVal, cm.matchMode ?? 'value', cm.alternativeId)
       if (!level) {
         warnings.push(
           `Choice task ${taskId}: value "${csvVal}" in column "${cm.csvColumn}" did not match any level`,
