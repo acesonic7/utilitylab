@@ -123,4 +123,11 @@ export type Project = {
   // Expected number of survey respondents. Drives the sample-size panel in the
   // generator; not used by validation or generation logic itself.
   targetSampleSize?: number
+  // LimeSurvey publish target. Username and survey ID are persisted; the
+  // password is asked for on every push and never stored.
+  limesurvey?: {
+    url?: string
+    surveyId?: number
+    username?: string
+  }
 }

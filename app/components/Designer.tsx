@@ -15,7 +15,7 @@ import ConstraintsEditor from './editors/ConstraintsEditor'
 import DesignSource from './DesignSource'
 import ChoiceTaskTable from './ChoiceTaskTable'
 import ValidationPanel from './ValidationPanel'
-import ExportButtons from './ExportButtons'
+import ExportTabs from './ExportTabs'
 import { GitHub, Refresh } from './Icons'
 
 export default function Designer() {
@@ -140,8 +140,12 @@ export default function Designer() {
           <ValidationPanel project={project} />
         </Section>
 
-        <Section number={5} title="Export" hint="Download for Qualtrics import.">
-          <ExportButtons project={project} />
+        <Section
+          number={5}
+          title="Export"
+          hint="Download files for Qualtrics, or push directly to LimeSurvey."
+        >
+          <ExportTabs project={project} setProject={setProject} />
         </Section>
 
         <footer className="border-t border-neutral-200 pt-6 mt-12 text-center text-xs text-neutral-500 space-y-1.5">
