@@ -106,7 +106,7 @@ export default function ChoiceTaskTable({
             ))}
             <tr className="border-t border-neutral-200">
               <td className="p-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-medium">
-                Choice
+                {project.builder.labels?.choiceColumn?.trim() || 'Choice'}
               </td>
               {altOrder.map((alt) => (
                 <td key={alt.id} className="p-2.5 text-center">

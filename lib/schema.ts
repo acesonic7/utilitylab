@@ -123,6 +123,11 @@ export type BuilderConfig = {
   layout: 'attributes-as-rows' | 'attributes-as-columns'
   showUnits: boolean
   optOutPosition: 'last' | 'first' | 'inline'
+  // User-overridable survey labels. Falls back to English defaults when unset.
+  // Used in the choice-task preview and exports (Qualtrics/LimeSurvey/Sawtooth).
+  labels?: {
+    choiceColumn?: string
+  }
 }
 
 export type ValidationConfig = {

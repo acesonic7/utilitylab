@@ -62,6 +62,25 @@ export default function ProjectInfoEditor({
           </TypeChip>
         </div>
       </Field>
+      <Field
+        label="Choice column label"
+        hint='Header for the "pick one" row in the preview. Useful for non-English surveys (e.g. "Επιλογή"). Qualtrics and LimeSurvey render their own radio UI, so this label only changes what you see here.'
+      >
+        <input
+          type="text"
+          value={project.builder.labels?.choiceColumn ?? ''}
+          placeholder="Choice"
+          onChange={(e) =>
+            stamp({
+              builder: {
+                ...project.builder,
+                labels: { ...project.builder.labels, choiceColumn: e.target.value },
+              },
+            })
+          }
+          className={inputCls}
+        />
+      </Field>
     </div>
   )
 }
