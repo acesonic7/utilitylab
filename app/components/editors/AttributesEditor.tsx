@@ -13,6 +13,7 @@ import { createAttribute, createLevel } from '@/lib/defaults'
 import { getLevelsForAlt, attrHasOverrides } from '@/lib/levelLookup'
 import { ChevronDown, ChevronRight, Pencil, Plus, XMark } from '../Icons'
 import Field, { inputCls, inputClsCompact } from './Field'
+import ImageUrlInput from './ImageUrlInput'
 
 export default function AttributesEditor({
   project,
@@ -222,6 +223,14 @@ function AttributeCard({
               </select>
             </Field>
           </div>
+
+          <Field label="Image" hint="Optional icon shown next to the attribute name in the preview and exports.">
+            <ImageUrlInput
+              value={attribute.imageUrl}
+              onChange={(v) => onUpdate({ imageUrl: v })}
+              size={28}
+            />
+          </Field>
 
           {project.experimentType === 'labeled' && (
             <Field label="Applies to" required>
@@ -616,10 +625,11 @@ function LevelsEditor({
     <Field label={`Levels (${attribute.levels.length})`} required>
       <div className="grid grid-cols-12 gap-1.5 mb-1.5 text-[10px] uppercase tracking-wider text-neutral-400">
         <div className="col-span-1 text-center">#</div>
-        <div className="col-span-5">
+        <div className="col-span-4">
           Value <span className="text-rose-500">*</span>
         </div>
-        <div className="col-span-5">Display label (optional)</div>
+        <div className="col-span-4">Display label (optional)</div>
+        <div className="col-span-2">Image (optional)</div>
         <div className="col-span-1"></div>
       </div>
       <ul className="space-y-1.5">
@@ -628,7 +638,7 @@ function LevelsEditor({
             <span className="col-span-1 text-[11px] text-neutral-400 font-mono text-center tabular-nums">
               {i + 1}
             </span>
-            <div className="col-span-5">
+            <div className="col-span-4">
               {attribute.type === 'boolean' ? (
                 <select
                   value={String(l.value)}
@@ -654,7 +664,7 @@ function LevelsEditor({
                 />
               )}
             </div>
-            <div className="col-span-5">
+            <div className="col-span-4">
               <input
                 type="text"
                 value={l.displayValue ?? ''}
@@ -667,6 +677,13 @@ function LevelsEditor({
                     : 'shown to respondents'
                 }
                 className={inputClsCompact}
+              />
+            </div>
+            <div className="col-span-2">
+              <ImageUrlInput
+                value={l.imageUrl}
+                onChange={(v) => updateLevel(l.id, { imageUrl: v })}
+                size={20}
               />
             </div>
             <button

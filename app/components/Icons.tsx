@@ -27,6 +27,14 @@ export function ChevronDown({ size = 16, ...p }: IconProps) {
   )
 }
 
+export function ChevronUp({ size = 16, ...p }: IconProps) {
+  return (
+    <svg {...base(size)} {...p}>
+      <polyline points="6 15 12 9 18 15" />
+    </svg>
+  )
+}
+
 export function XMark({ size = 16, ...p }: IconProps) {
   return (
     <svg {...base(size)} {...p}>

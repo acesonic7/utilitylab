@@ -2,6 +2,7 @@
 
 import type { Project } from '@/lib/schema'
 import { exportTxt, exportQsf } from '@/lib/qualtricsExport'
+import { exportSawtoothCsv } from '@/lib/sawtoothExport'
 import { buildWiringGuide, hasPivotedAttributes } from '@/lib/wiringGuide'
 import { Download } from './Icons'
 
@@ -46,6 +47,22 @@ export default function ExportButtons({ project }: { project: Project }) {
           Export QSF
           <span className="text-[11px] text-neutral-500 font-normal">Qualtrics native</span>
         </button>
+        <button
+          onClick={() =>
+            downloadBlob(
+              exportSawtoothCsv(project),
+              `${project.slug}-sawtooth.csv`,
+              'text/csv',
+            )
+          }
+          disabled={!hasDesign}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          title="CSV for Sawtooth Lighthouse Studio &rarr; CBC &rarr; Import Design"
+        >
+          <Download size={14} />
+          Export CSV
+          <span className="text-[11px] text-neutral-500 font-normal">Sawtooth Lighthouse</span>
+        </button>
         {showWiringGuide && (
           <button
             onClick={() =>
@@ -67,11 +84,16 @@ export default function ExportButtons({ project }: { project: Project }) {
       <p className="text-xs text-neutral-500 mt-3 leading-relaxed">
         {hasDesign ? (
           <>
-            Files generate from your current state. Import via{' '}
+            Files generate from your current state. Qualtrics:{' '}
             <span className="font-medium text-neutral-700">
-              Qualtrics → Library → Survey Templates → New → Import
+              Library → Survey Templates → New → Import
             </span>
-            .
+            . Sawtooth Lighthouse:{' '}
+            <span className="font-medium text-neutral-700">
+              CBC exercise → Design tab → Import Design
+            </span>{' '}
+            (configure attributes/levels in Lighthouse first; level codes are
+            1-indexed positions).
             {showWiringGuide && (
               <>
                 {' '}

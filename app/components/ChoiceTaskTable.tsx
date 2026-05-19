@@ -59,6 +59,13 @@ export default function ChoiceTaskTable({
                       : 'border-neutral-900'
                   }`}
                 >
+                  {a.imageUrl && (
+                    <img
+                      src={a.imageUrl}
+                      alt=""
+                      className="mx-auto mb-1 max-h-12 object-contain"
+                    />
+                  )}
                   {a.label}
                   {a.isOptOut && (
                     <span className="block text-[10px] uppercase tracking-wider font-normal text-neutral-400 mt-0.5">
@@ -73,12 +80,23 @@ export default function ChoiceTaskTable({
             {attrOrder.map((attr, ri) => (
               <tr key={attr.id} className={ri % 2 === 1 ? 'bg-neutral-50/40' : ''}>
                 <th className="p-2.5 text-left font-medium text-neutral-700">
-                  {attr.name}
-                  {project.builder.showUnits && attr.unit && (
-                    <span className="text-neutral-400 font-normal text-xs ml-1">
-                      ({attr.unit})
+                  <span className="inline-flex items-center gap-1.5">
+                    {attr.imageUrl && (
+                      <img
+                        src={attr.imageUrl}
+                        alt=""
+                        className="h-5 w-5 object-contain"
+                      />
+                    )}
+                    <span>
+                      {attr.name}
+                      {project.builder.showUnits && attr.unit && (
+                        <span className="text-neutral-400 font-normal text-xs ml-1">
+                          ({attr.unit})
+                        </span>
+                      )}
                     </span>
-                  )}
+                  </span>
                 </th>
                 {altOrder.map((alt) => {
                   const empty = alt.isOptOut || !appliesToAlt(attr, alt.id)
@@ -93,11 +111,19 @@ export default function ChoiceTaskTable({
                     )
                   }
                   const lid = row.cells[cellKey(alt.id, attr.id)]
+                  const level = getLevel(attr, lid)
                   return (
                     <td
                       key={alt.id}
                       className="p-2.5 text-center text-neutral-900 tabular-nums"
                     >
+                      {level?.imageUrl && (
+                        <img
+                          src={level.imageUrl}
+                          alt=""
+                          className="mx-auto mb-1 max-h-10 object-contain"
+                        />
+                      )}
                       {levelText(attr, lid)}
                     </td>
                   )
@@ -106,7 +132,7 @@ export default function ChoiceTaskTable({
             ))}
             <tr className="border-t border-neutral-200">
               <td className="p-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-medium">
-                Choice
+                {project.builder.labels?.choiceColumn?.trim() || 'Choice'}
               </td>
               {altOrder.map((alt) => (
                 <td key={alt.id} className="p-2.5 text-center">
