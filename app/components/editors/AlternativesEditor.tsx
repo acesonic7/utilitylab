@@ -2,7 +2,7 @@
 
 import type { Project, Alternative } from '@/lib/schema'
 import { createAlternative } from '@/lib/defaults'
-import { Plus, XMark } from '../Icons'
+import { Plus, XMark, ChevronUp, ChevronDown } from '../Icons'
 
 export default function AlternativesEditor({
   project,
@@ -48,6 +48,20 @@ export default function AlternativesEditor({
     })
   }
 
+  const move = (id: string, direction: -1 | 1) => {
+    const idx = project.alternatives.findIndex((a) => a.id === id)
+    const target = idx + direction
+    if (idx < 0 || target < 0 || target >= project.alternatives.length) return
+    const reordered = [...project.alternatives]
+    ;[reordered[idx], reordered[target]] = [reordered[target], reordered[idx]]
+    const withPositions = reordered.map((a, i) => ({ ...a, position: i }))
+    const orderIds = withPositions.map((a) => a.id)
+    stamp({
+      alternatives: withPositions,
+      builder: { ...project.builder, alternativeOrder: orderIds },
+    })
+  }
+
   return (
     <div className="rounded-xl bg-white ring-1 ring-neutral-200/60 shadow-sm p-5">
       <div className="flex items-baseline justify-between mb-3">
@@ -72,8 +86,28 @@ export default function AlternativesEditor({
         </button>
       </div>
       <ul className="space-y-2">
-        {project.alternatives.map((a) => (
+        {project.alternatives.map((a, i) => (
           <li key={a.id} className="flex items-center gap-3">
+            <div className="flex flex-col -space-y-0.5">
+              <button
+                onClick={() => move(a.id, -1)}
+                disabled={i === 0}
+                className="text-neutral-400 hover:text-neutral-900 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded transition"
+                aria-label="Move up"
+                title="Move up"
+              >
+                <ChevronUp size={14} />
+              </button>
+              <button
+                onClick={() => move(a.id, 1)}
+                disabled={i === project.alternatives.length - 1}
+                className="text-neutral-400 hover:text-neutral-900 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded transition"
+                aria-label="Move down"
+                title="Move down"
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
             <input
               type="text"
               value={a.label}
