@@ -3,6 +3,7 @@
 import type { Project, Alternative } from '@/lib/schema'
 import { createAlternative } from '@/lib/defaults'
 import { Plus, XMark, ChevronUp, ChevronDown } from '../Icons'
+import ImageUrlInput from './ImageUrlInput'
 
 export default function AlternativesEditor({
   project,
@@ -114,6 +115,10 @@ export default function AlternativesEditor({
               placeholder="Label (e.g. Car, Bus)"
               onChange={(e) => update(a.id, { label: e.target.value })}
               className="flex-1 bg-white rounded-md px-3 py-1.5 text-sm ring-1 ring-neutral-200 hover:ring-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition"
+            />
+            <ImageUrlInput
+              value={a.imageUrl}
+              onChange={(v) => update(a.id, { imageUrl: v })}
             />
             <label className="text-xs text-neutral-600 flex items-center gap-1.5 whitespace-nowrap select-none cursor-pointer hover:text-neutral-900 transition">
               <input

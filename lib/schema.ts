@@ -9,6 +9,9 @@ export type Level = {
   value: number | string | boolean
   displayValue?: string
   position: number
+  // Optional image rendered alongside the level in the preview and exports.
+  // URL is used as-is in <img src>; cross-origin loading depends on the host.
+  imageUrl?: string
 }
 
 export type PivotMode = 'none' | 'absolute' | 'relative'
@@ -46,6 +49,9 @@ export type Attribute = {
   // Static pivot configuration (numeric attributes only). Levels are
   // interpreted as deltas from / multipliers of `previewReference`.
   pivot?: AttributePivot
+  // Optional image rendered in the row header alongside the attribute name
+  // (preview + exports). Same caveats as Level.imageUrl.
+  imageUrl?: string
 }
 
 export type Alternative = {
@@ -53,6 +59,9 @@ export type Alternative = {
   label: string
   isOptOut: boolean
   position: number
+  // Optional image rendered in the column header alongside the alternative
+  // label (preview + exports). Same caveats as Level.imageUrl.
+  imageUrl?: string
 }
 
 export type ColumnMappingRole = 'task' | 'block' | 'cell' | 'context' | 'ignore'

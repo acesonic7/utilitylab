@@ -25,6 +25,11 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function imgTag(url: string | undefined, maxH: number): string {
+  if (!url) return ''
+  return `<img src="${escapeHtml(url)}" alt="" style="max-height:${maxH}px;display:block;margin:0 auto 4px auto;" />`
+}
+
 export function renderTaskAsHtml(project: Project, row: DesignRow): string {
   const altOrder = project.builder.alternativeOrder
     .map((id) => project.alternatives.find((a) => a.id === id))
@@ -50,7 +55,9 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
     ? `<p style="margin:0 0 0.5em 0;color:#555;">${ctxParts.join(' &middot; ')}</p>`
     : ''
 
-  const headerCells = altOrder.map((a) => `<th>${escapeHtml(a.label)}</th>`).join('')
+  const headerCells = altOrder
+    .map((a) => `<th>${imgTag(a.imageUrl, 48)}${escapeHtml(a.label)}</th>`)
+    .join('')
   const headerRow = `<tr><th></th>${headerCells}</tr>`
 
   const bodyRows = attrOrder
@@ -59,11 +66,15 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
         .map((alt) => {
           if (alt.isOptOut || !appliesToAlt(attr, alt.id)) return '<td>—</td>'
           const lid = row.cells[cellKey(alt.id, attr.id)]
-          return `<td>${escapeHtml(levelText(attr, lid))}</td>`
+          const level = getLevel(attr, lid)
+          return `<td>${imgTag(level?.imageUrl, 40)}${escapeHtml(levelText(attr, lid))}</td>`
         })
         .join('')
       const unitSuffix = project.builder.showUnits && attr.unit ? ` (${attr.unit})` : ''
-      return `<tr><th>${escapeHtml(attr.name + unitSuffix)}</th>${cells}</tr>`
+      const attrIcon = attr.imageUrl
+        ? `<img src="${escapeHtml(attr.imageUrl)}" alt="" style="height:18px;vertical-align:middle;margin-right:6px;" />`
+        : ''
+      return `<tr><th>${attrIcon}${escapeHtml(attr.name + unitSuffix)}</th>${cells}</tr>`
     })
     .join('')
 
