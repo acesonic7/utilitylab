@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import type { Project } from '@/lib/schema'
 import { altIdentities } from '@/lib/altIdentity'
 import { Logo, Wordmark } from './Logo'
-import { Eye } from './Icons'
+import { ChevronDown, Eye } from './Icons'
+import { useLibrary } from './library/LibraryContext'
 import { useWorkspaceActions } from './Workspace'
 import { AltGlyph, Button, IconButton, Tag } from './ui'
 import { SavedIndicator } from './shell/SavedIndicator'
@@ -26,6 +27,7 @@ export function BrandCell() {
 
 export default function TopBar({ project }: { project: Project }) {
   const { goTo } = useWorkspaceActions()
+  const lib = useLibrary()
   const [mac, setMac] = useState(true)
   const ids = altIdentities(project)
 
@@ -53,7 +55,13 @@ export default function TopBar({ project }: { project: Project }) {
       <div className="flex h-full min-w-0 flex-1 items-center gap-3 pr-4 sm:pr-5">
         <span aria-hidden="true" className="ml-1 h-5 w-px shrink-0 rotate-[20deg] bg-line-2 lg:hidden" />
 
-        <div className="flex min-w-0 items-center gap-2.5">
+        <button
+          type="button"
+          onClick={lib.openLibrary}
+          aria-haspopup="dialog"
+          title="Switch study"
+          className="focus-ring -ml-1.5 flex min-w-0 items-center gap-2.5 rounded-well px-1.5 py-1 hover:bg-surface-3"
+        >
           {ids.length > 0 && (
             <span aria-hidden="true" className="hidden shrink-0 gap-[3px] sm:inline-flex">
               {ids.map((id) => (
@@ -61,13 +69,15 @@ export default function TopBar({ project }: { project: Project }) {
               ))}
             </span>
           )}
-          <span className="truncate text-14 font-semibold text-ink" title={project.name}>
+          <span className="truncate text-14 font-semibold text-ink">
             {project.name || 'Untitled stated choice experiment'}
           </span>
           <Tag className="hidden md:inline-flex">
             {project.experimentType === 'labeled' ? 'Labeled' : 'Unlabeled'}
           </Tag>
-        </div>
+          <ChevronDown size={14} className="shrink-0 text-ink-3" />
+          <span className="sr-only">, open studies</span>
+        </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <SavedIndicator className="mr-1.5 hidden lg:inline-flex" />

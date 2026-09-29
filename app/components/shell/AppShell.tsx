@@ -1,11 +1,12 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Project } from '@/lib/schema'
 import TopBar from '../TopBar'
 import { MobileNav } from './MobileNav'
 import { APP_VERSION, CreditLink, Rail } from './Rail'
 import { useScrollSpy } from './useScrollSpy'
+import { Walkthrough, WalkthroughLink, hasSeenWalkthrough } from './Walkthrough'
 
 export const canvasClass = 'min-w-0 px-4 pb-24 pt-8 sm:px-8 lg:px-11 lg:pt-10'
 export const contentClass = 'mx-auto max-w-[1120px]'
@@ -31,6 +32,11 @@ export function AppShell({
   children: ReactNode
 }) {
   const current = useScrollSpy()
+  const [tourOpen, setTourOpen] = useState(false)
+  useEffect(() => {
+    if (!hasSeenWalkthrough()) setTourOpen(true)
+  }, [])
+  const openTour = () => setTourOpen(true)
 
   return (
     <div className="min-h-screen">
@@ -38,7 +44,7 @@ export function AppShell({
       <TopBar project={project} />
       <MobileNav project={project} current={current} />
       <div className="lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
-        <Rail project={project} current={current} />
+        <Rail project={project} current={current} onOpenTour={openTour} />
         <main
           id="main"
           tabIndex={-1}
@@ -49,11 +55,15 @@ export function AppShell({
             {children}
             <footer className="mt-[72px] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line pt-[18px] text-13 text-ink-3">
               <span>UtilityLab v{APP_VERSION} · Stated choice experiment designer</span>
-              <CreditLink className="lg:hidden" />
+              <span className="flex items-center gap-4 lg:hidden">
+                <WalkthroughLink onOpen={openTour} />
+                <CreditLink />
+              </span>
             </footer>
           </div>
         </main>
       </div>
+      <Walkthrough project={project} open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   )
 }

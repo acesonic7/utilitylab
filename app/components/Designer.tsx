@@ -11,8 +11,25 @@ import {
   type ComponentType,
 } from 'react'
 import type { Project } from '@/lib/schema'
-import { loadProject, saveProject, clearProject } from '@/lib/persist'
-import { travelModeExample } from '@/lib/example'
+import {
+  addStudy,
+  archiveDesign,
+  blankStudy,
+  deleteStudy,
+  designHistory,
+  duplicateStudy,
+  exampleStudy,
+  listStudies,
+  loadLibrary,
+  openStudy,
+  readStudy,
+  readStudyRaw,
+  saveStudy,
+  setDesignHistory,
+  type ArchivedDesign,
+  type StudyMeta,
+} from '@/lib/library'
+import { downloadText, parseProjectFile, projectFileName, serializeProjectFile } from '@/lib/projectFile'
 import { ensureIdentitySlots } from '@/lib/altIdentity'
 
 import { DesignHealthProvider } from './DesignHealth'
@@ -21,7 +38,9 @@ import { WorkspaceProvider } from './Workspace'
 import ProjectHeader from './ProjectHeader'
 import { AppShell } from './shell/AppShell'
 import { ShellSkeleton } from './shell/ShellSkeleton'
-import { markSaved } from './shell/SavedIndicator'
+import { markSaveFailed, markSaved } from './shell/SavedIndicator'
+import { LibraryContext, type LibraryApi } from './library/LibraryContext'
+import { StudyLibrary } from './library/StudyLibrary'
 import { SECTIONS, sectionClass } from './shell/sections'
 import type { SectionId } from './Workspace'
 import StructureSection from './sections/StructureSection'
@@ -51,16 +70,37 @@ const LIVE_SECTIONS = new Set<SectionId>(['structure'])
 export default function Designer() {
   const [project, setProjectState] = useState<Project | null>(null)
   const latest = useRef<Project | null>(null)
+  const [studies, setStudies] = useState<StudyMeta[]>([])
+  const [unreadable, setUnreadable] = useState<string[]>([])
+  const [history, setHistory] = useState<ArchivedDesign[]>([])
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+
+  const refreshStudies = useCallback(() => setStudies(listStudies()), [])
 
   // Every update stores identity slots, so reordering alternatives never repaints them.
   // The updater form runs against the latest project, not the caller's render-time copy.
+  // Replacing or clearing a study's design keeps the previous one in its design history.
   const setProject = useCallback<SetProject>((update) => {
     const base = latest.current
     const p = typeof update === 'function' ? (base ? update(base) : null) : update
     if (!p || p === base) return
     const next = ensureIdentitySlots(p)
+    if (base && base.id === next.id && base.design && base.design.uploadedAt !== next.design?.uploadedAt) {
+      archiveDesign(base.id, base.design)
+      setHistory(designHistory(base.id))
+    }
     latest.current = next
     setProjectState(next)
+  }, [])
+
+  // Switching studies replaces the project wholesale, with no design archiving.
+  const switchTo = useCallback((p: Project) => {
+    const next = ensureIdentitySlots(p)
+    latest.current = next
+    setProjectState(next)
+    setHistory(designHistory(next.id))
+    setStudies(listStudies())
   }, [])
 
   const getProject = useCallback(() => latest.current as Project, [])
@@ -86,13 +126,22 @@ export default function Designer() {
   }, [deferred, setProject])
 
   useEffect(() => {
-    setProject(loadProject())
-  }, [setProject])
+    const lib = loadLibrary()
+    setUnreadable(lib.unreadable)
+    switchTo(lib.project)
+  }, [switchTo])
 
   useEffect(() => {
     if (!project) return
-    saveProject(project)
-    markSaved()
+    const r = saveStudy(project)
+    if (r.ok) {
+      markSaved()
+      setSaveError(null)
+    } else {
+      markSaveFailed(r.error)
+      setSaveError(r.error)
+    }
+    setStudies(listStudies())
   }, [project])
 
   // The page is client-rendered, so the metadata title template never sees the project name.
@@ -101,19 +150,92 @@ export default function Designer() {
     if (docTitle !== null) document.title = `${docTitle} · UtilityLab`
   }, [docTitle])
 
-  const handleReset = useCallback(() => {
-    if (!window.confirm('Reset to the travel mode example? Your current edits will be lost.')) return
-    clearProject()
-    setProject({ ...travelModeExample })
-  }, [setProject])
+  const create = useCallback(
+    (p: Project, opts?: { fromExample?: boolean; history?: ArchivedDesign[] }) => {
+      const r = addStudy(p, opts)
+      if (!r.ok) {
+        setSaveError(r.error)
+        return r.error
+      }
+      if (opts?.history?.length) setDesignHistory(p.id, opts.history)
+      switchTo(p)
+      setLibraryOpen(false)
+      return null
+    },
+    [switchTo],
+  )
+
+  const library = useMemo<LibraryApi>(
+    () => ({
+      studies,
+      unreadable,
+      activeId: project?.id ?? '',
+      history,
+      saveError,
+      openLibrary: () => setLibraryOpen(true),
+      newBlank: () => void create(blankStudy()),
+      newFromExample: () => void create(exampleStudy(), { fromExample: true }),
+      open: (id) => {
+        const p = openStudy(id)
+        if (p) {
+          switchTo(p)
+          setLibraryOpen(false)
+        } else setUnreadable((u) => (u.includes(id) ? u : [...u, id]))
+      },
+      duplicate: (id) => {
+        const src = id === latest.current?.id ? latest.current : readStudy(id)
+        if (src) create(duplicateStudy(src), { history: designHistory(id) })
+      },
+      remove: (id) => {
+        deleteStudy(id)
+        setUnreadable((u) => u.filter((x) => x !== id))
+        if (id !== latest.current?.id) return refreshStudies()
+        const nextMeta = listStudies()[0]
+        const next = nextMeta ? openStudy(nextMeta.id) : null
+        if (next) switchTo(next)
+        else create(exampleStudy(), { fromExample: true })
+      },
+      importFile: async (file) => {
+        const parsed = parseProjectFile(await file.text(), listStudies().map((m) => m.id))
+        if (!parsed.ok) return parsed.error
+        return create({ ...parsed.project, updatedAt: new Date().toISOString() }, { history: parsed.designHistory })
+      },
+      download: (id) => {
+        const p = id === latest.current?.id ? latest.current : readStudy(id)
+        if (p) downloadText(projectFileName(p), serializeProjectFile(p, designHistory(id)))
+      },
+      downloadRaw: (id) => {
+        const raw = readStudyRaw(id)
+        if (raw !== null) downloadText(`${id}.unreadable.json`, raw)
+      },
+      restoreDesign: (entry) => {
+        const id = latest.current?.id
+        if (!id) return
+        setProject((p) => ({ ...p, design: entry.design, updatedAt: new Date().toISOString() }))
+        const rest = designHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
+        setDesignHistory(id, rest)
+        setHistory(rest)
+      },
+      forgetDesign: (entry) => {
+        const id = latest.current?.id
+        if (!id) return
+        const rest = designHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
+        setDesignHistory(id, rest)
+        setHistory(rest)
+      },
+      current: getProject,
+    }),
+    [studies, unreadable, project?.id, history, saveError, create, switchTo, refreshStudies, setProject, getProject],
+  )
 
   if (!project || !deferred) return <ShellSkeleton />
 
   return (
+    <LibraryContext.Provider value={library}>
     <WorkspaceProvider>
       <LatestProjectProvider get={getProject}>
         <DesignHealthProvider project={deferred}>
-          <AppShell project={project} header={<ProjectHeader project={project} onReset={handleReset} />}>
+          <AppShell project={project} header={<ProjectHeader project={project} />}>
             {SECTIONS.map(({ id, title }) => {
               const View = SECTION_VIEWS[id]
               const live = LIVE_SECTIONS.has(id)
@@ -130,5 +252,7 @@ export default function Designer() {
         </DesignHealthProvider>
       </LatestProjectProvider>
     </WorkspaceProvider>
+      <StudyLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+    </LibraryContext.Provider>
   )
 }

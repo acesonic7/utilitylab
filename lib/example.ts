@@ -1,17 +1,17 @@
 import type { Project } from './schema'
 
-// Worked example: urban commute mode choice in a European city.
+// Worked example: everyday mode choice in Athens, Greece.
 // 4 alternatives: Car, Public transport, Bike, Walking. 4 attributes,
 // 6 choice tasks across 2 blocks. Demonstrates a labeled experiment with
 // alternative-specific attributes (cost on Car/PT only, service frequency
 // on PT only).
 
 export const travelModeExample: Project = {
-  id: 'proj_eu_mode_choice',
-  slug: 'eu-urban-commute',
-  name: 'Urban Commute Mode Choice (EU)',
+  id: 'proj_athens_mode_choice',
+  slug: 'athens-mode-choice',
+  name: 'Athens, Greece mode choice experiment',
   description:
-    'Stated-preference study of commuting decisions across four travel modes in a mid-size European city.',
+    'How do people in Athens choose between driving, public transport, cycling and walking? Each choice task describes a trip — how long it takes, what it costs, how comfortable it is and how often the metro or bus runs — and asks respondents which way they would travel.',
   createdAt: '2026-04-27T10:00:00Z',
   updatedAt: '2026-04-27T10:05:00Z',
   experimentType: 'labeled',
