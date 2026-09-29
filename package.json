@@ -9,7 +9,8 @@
     "lint": "next lint",
     "validate": "tsx scripts/runValidation.ts",
     "export": "tsx scripts/runExport.ts",
-    "preview": "tsx scripts/runPreview.ts"
+    "preview": "tsx scripts/runPreview.ts",
+    "diagnostics": "tsx scripts/runDiagnostics.ts"
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",

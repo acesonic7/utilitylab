@@ -27,27 +27,34 @@ export function cellKey(altId: string, attrId: string): string {
   return `${altId}.${attrId}`
 }
 
-function appliesToAlt(attr: Attribute, altId: string): boolean {
+export function appliesToAlt(attr: Attribute, altId: string): boolean {
   return attr.appliesTo === 'all' || attr.appliesTo.includes(altId)
 }
 
-function getLevel(attr: Attribute, levelId: string | undefined): Level | undefined {
+export function getLevel(attr: Attribute, levelId: string | undefined): Level | undefined {
   if (!levelId) return undefined
   return findLevelInAttr(attr, levelId)
 }
 
-function getScalar(attr: Attribute, level: Level): number {
+export function getScalar(attr: Attribute, level: Level): number {
   if (attr.type === 'numeric') return Number(level.value)
   return level.position
 }
 
-export function validate(project: Project, override?: Partial<ValidationConfig>): Report {
-  const cfg: ValidationConfig = {
+export function resolveValidationConfig(
+  project: Project,
+  override?: Partial<ValidationConfig>,
+): ValidationConfig {
+  return {
     dominance: { ...defaultValidationConfig.dominance, ...project.validationConfig?.dominance, ...override?.dominance },
     balance: { ...defaultValidationConfig.balance, ...project.validationConfig?.balance, ...override?.balance },
     correlation: { ...defaultValidationConfig.correlation, ...project.validationConfig?.correlation, ...override?.correlation },
     overlap: { ...defaultValidationConfig.overlap, ...project.validationConfig?.overlap, ...override?.overlap },
   }
+}
+
+export function validate(project: Project, override?: Partial<ValidationConfig>): Report {
+  const cfg = resolveValidationConfig(project, override)
   const findings: Finding[] = []
   if (cfg.dominance.enabled) findings.push(...checkDominance(project))
   if (cfg.balance.enabled) findings.push(...checkBalance(project, cfg.balance))
@@ -241,7 +248,7 @@ function checkBalance(project: Project, cfg: ValidationConfig['balance']): Findi
   return findings
 }
 
-function pearson(x: number[], y: number[]): number {
+export function pearson(x: number[], y: number[]): number {
   const n = x.length
   if (n < 2) return 0
   const mx = x.reduce((s, v) => s + v, 0) / n

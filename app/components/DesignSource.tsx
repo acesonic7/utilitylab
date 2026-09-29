@@ -1,69 +1,111 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import type { Project } from '@/lib/schema'
+import type { SetProject } from './ProjectStore'
 import CsvUpload from './CsvUpload'
 import DesignGenerator from './DesignGenerator'
+import { XMark } from './Icons'
+import { IconButton, Tag } from './ui'
 
-type Tab = 'upload' | 'generate'
+export type DesignSourceMode = 'upload' | 'generate'
 
+export const DESIGN_PANEL_IDS: Record<DesignSourceMode, string> = {
+  upload: 'design-upload-panel',
+  generate: 'design-generate-panel',
+}
+
+// Both panels stay mounted while hidden, so an in-progress mapping or generator settings survive closing.
 export default function DesignSource({
   project,
   setProject,
+  open,
+  onClose,
 }: {
   project: Project
-  setProject: (p: Project) => void
+  setProject: SetProject
+  open: DesignSourceMode | null
+  onClose: (applied?: boolean) => void
 }) {
-  const initialTab: Tab = project.design?.source === 'generated' ? 'generate' : 'upload'
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const uploadHeading = useRef<HTMLHeadingElement>(null)
+  const generateHeading = useRef<HTMLHeadingElement>(null)
+  const replacing = project.design?.source === 'csv'
+
+  useEffect(() => {
+    if (open === 'upload') uploadHeading.current?.focus()
+    if (open === 'generate') generateHeading.current?.focus()
+  }, [open])
 
   return (
-    <div>
-      <div className="flex items-center gap-1 mb-3 border-b border-neutral-200">
-        <TabButton active={tab === 'upload'} onClick={() => setTab('upload')}>
-          Upload CSV
-        </TabButton>
-        <TabButton active={tab === 'generate'} onClick={() => setTab('generate')}>
-          Generate
-          <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-normal">
-            beta
-          </span>
-        </TabButton>
-        {project.design && (
-          <span className="ml-auto text-[11px] text-neutral-500">
-            Active source:{' '}
-            <span className="font-mono text-neutral-700">{project.design.source}</span>
-          </span>
-        )}
-      </div>
-      {tab === 'upload' ? (
-        <CsvUpload project={project} setProject={setProject} />
-      ) : (
+    <>
+      <SourcePanel
+        id={DESIGN_PANEL_IDS.upload}
+        hidden={open !== 'upload'}
+        headingRef={uploadHeading}
+        title={replacing ? 'Replace the design CSV' : 'Upload a design CSV'}
+        lede="Map each column to the choice task, block, an alternative’s attribute or a context variable."
+        onClose={() => onClose()}
+      >
+        <CsvUpload project={project} setProject={setProject} onApplied={() => onClose(true)} />
+      </SourcePanel>
+      <SourcePanel
+        id={DESIGN_PANEL_IDS.generate}
+        hidden={open !== 'generate'}
+        headingRef={generateHeading}
+        title="Generate a design"
+        tag={<Tag tone="muted">Beta</Tag>}
+        lede="Build the design from the structure by D-optimal search, balanced search or random sampling."
+        onClose={() => onClose()}
+      >
         <DesignGenerator project={project} setProject={setProject} />
-      )}
-    </div>
+      </SourcePanel>
+    </>
   )
 }
 
-function TabButton({
-  active,
-  onClick,
+function SourcePanel({
+  id,
+  hidden,
+  headingRef,
+  title,
+  tag,
+  lede,
+  onClose,
   children,
 }: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
+  id: string
+  hidden: boolean
+  headingRef: RefObject<HTMLHeadingElement>
+  title: string
+  tag?: ReactNode
+  lede: string
+  onClose: () => void
+  children: ReactNode
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 -mb-[2px] transition ${
-        active
-          ? 'border-indigo-600 text-neutral-900'
-          : 'border-transparent text-neutral-500 hover:text-neutral-800'
-      }`}
-    >
-      {children}
-    </button>
+    <div id={id} role="group" aria-labelledby={`${id}-title`} hidden={hidden}>
+      <div className="mb-6 rounded-panel bg-surface shadow-hairline">
+        <header className="flex items-start gap-3 border-b border-line px-5 py-3.5">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3
+                id={`${id}-title`}
+                ref={headingRef}
+                tabIndex={-1}
+                className="text-16 font-semibold tracking-[-0.005em] text-ink focus:outline-none"
+              >
+                {title}
+              </h3>
+              {tag}
+            </div>
+            <p className="mt-0.5 text-13 text-ink-3">{lede}</p>
+          </div>
+          <IconButton label={`Close: ${title}`} size="sm" onClick={onClose} className="-mr-1.5 shrink-0">
+            <XMark />
+          </IconButton>
+        </header>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
   )
 }

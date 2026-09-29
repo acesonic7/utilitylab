@@ -1,41 +1,89 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Button, IconButton, Input, cx } from '../ui'
+import { XMark } from '../Icons'
+import { ImageIcon } from './structure/icons'
 
-// Compact image URL field with a thumbnail preview. Used for attribute,
-// alternative, and level image overrides. The "image" toggle keeps the field
-// collapsed by default so we don't clutter editors that aren't using it.
+// Compact image URL field with a thumbnail preview, used for attribute, alternative and
+// level images. It stays collapsed behind an "Add image" trigger until an image is set.
 
 export default function ImageUrlInput({
   value,
   onChange,
   size = 24,
   placeholder = 'https://… (png, jpg, svg)',
+  name,
+  id,
+  compact,
+  className,
 }: {
   value: string | undefined
   onChange: (next: string | undefined) => void
   size?: number
   placeholder?: string
+  /** What the image belongs to, for accessible names ("Image URL for Car"). */
+  name?: string
+  /** Lands on the URL input when open, otherwise on the trigger, so a label's htmlFor works. */
+  id?: string
+  /** Icon-only trigger. */
+  compact?: boolean
+  /** Classes for the open row. */
+  className?: string
 }) {
   const has = !!value && value.trim() !== ''
   const [open, setOpen] = useState(has)
   const [broken, setBroken] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const focusNext = useRef<'input' | 'trigger' | null>(null)
+  const statusId = useId()
+  const expanded = open || has
+  const suffix = name ? ` for ${name}` : ''
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-[11px] text-neutral-400 hover:text-neutral-700 transition"
-        title="Add an image to this row"
+  useEffect(() => {
+    setBroken(false)
+  }, [value])
+
+  // A value set from outside (e.g. an import) keeps the row open while it is being edited.
+  useEffect(() => {
+    if (has) setOpen(true)
+  }, [has])
+
+  useEffect(() => {
+    if (focusNext.current === 'input') inputRef.current?.focus()
+    else if (focusNext.current === 'trigger') triggerRef.current?.focus()
+    focusNext.current = null
+  }, [expanded])
+
+  const show = () => {
+    focusNext.current = 'input'
+    setOpen(true)
+  }
+
+  if (!expanded) {
+    return compact ? (
+      <IconButton ref={triggerRef} id={id} size="sm" label={`Add image${suffix}`} onClick={show}>
+        <ImageIcon />
+      </IconButton>
+    ) : (
+      <Button
+        ref={triggerRef}
+        id={id}
+        variant="ghost"
+        size="sm"
+        icon={<ImageIcon />}
+        onClick={show}
+        aria-label={name ? `Add image${suffix}` : undefined}
+        title="Add an image"
       >
-        + image
-      </button>
+        Add image
+      </Button>
     )
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={cx('flex min-w-0 items-center gap-1.5', className)}>
       {has && !broken ? (
         <img
           src={value}
@@ -43,45 +91,56 @@ export default function ImageUrlInput({
           width={size}
           height={size}
           onError={() => setBroken(true)}
-          className="rounded-sm ring-1 ring-neutral-200 object-cover"
+          className="shrink-0 rounded-bar object-cover shadow-hairline"
           style={{ width: size, height: size }}
         />
       ) : (
-        <div
-          className={`rounded-sm ring-1 flex items-center justify-center text-[9px] ${
-            broken
-              ? 'ring-rose-300 text-rose-500 bg-rose-50'
-              : 'ring-neutral-200 text-neutral-400 bg-neutral-50'
-          }`}
+        <span
+          aria-hidden="true"
+          className={cx(
+            'flex shrink-0 items-center justify-center rounded-bar border text-12 leading-none',
+            broken ? 'border-risk bg-risk-bg text-risk' : 'border-line-2 bg-surface-2 text-ink-3',
+          )}
           style={{ width: size, height: size }}
           title={broken ? 'Image failed to load' : 'No image set'}
         >
           {broken ? '!' : '∅'}
-        </div>
+        </span>
       )}
-      <input
+      <Input
+        ref={inputRef}
+        id={id}
         type="url"
+        size="sm"
         value={value ?? ''}
         placeholder={placeholder}
+        aria-label={`Image URL${suffix}`}
+        aria-invalid={broken || undefined}
+        aria-describedby={broken ? statusId : undefined}
         onChange={(e) => {
           const v = e.target.value
           setBroken(false)
           onChange(v.trim() === '' ? undefined : v)
         }}
-        className="bg-white rounded-md px-2 py-1 text-xs ring-1 ring-neutral-200 hover:ring-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition w-44"
+        className="min-w-0 flex-[1_1_10rem]"
       />
-      <button
-        type="button"
+      {broken && (
+        <span id={statusId} className="sr-only">
+          Image failed to load
+        </span>
+      )}
+      <IconButton
+        size="sm"
+        label={`Remove image${suffix}`}
         onClick={() => {
           onChange(undefined)
           setBroken(false)
+          focusNext.current = 'trigger'
           setOpen(false)
         }}
-        className="text-neutral-400 hover:text-neutral-700 text-[11px] px-1 transition"
-        title="Remove image"
       >
-        ×
-      </button>
+        <XMark size={14} />
+      </IconButton>
     </div>
   )
 }

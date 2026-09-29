@@ -3,8 +3,11 @@
 import { useState } from 'react'
 import type { Project } from '@/lib/schema'
 import { buildSurveyLss } from '@/lib/limesurveyExport'
-import Field, { inputCls } from './editors/Field'
+import { joinNames, plural } from '@/lib/text'
+import { useLatestProject, type SetProject } from './ProjectStore'
+import { Button, Field, Input, Panel, Tag, cx } from './ui'
 import { Check, Download, Upload, XMark } from './Icons'
+import { downloadBlob } from './export/download'
 
 type Status =
   | { kind: 'idle' }
@@ -16,34 +19,37 @@ type Status =
 export default function LimeSurveyPush({
   project,
   setProject,
+  onClose,
 }: {
   project: Project
-  setProject: (p: Project) => void
+  setProject: SetProject
+  /** Shows a Close button in the panel header when set. */
+  onClose?: () => void
 }) {
   const ls = project.limesurvey ?? {}
   const [url, setUrl] = useState(ls.url ?? '')
   const [username, setUsername] = useState(ls.username ?? '')
   const [password, setPassword] = useState('')
-  const [surveyId, setSurveyId] = useState<string>(
-    ls.surveyId ? String(ls.surveyId) : '',
-  )
+  const [surveyId, setSurveyId] = useState<string>(ls.surveyId ? String(ls.surveyId) : '')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const getProject = useLatestProject()
 
   const persist = () => {
-    setProject({
-      ...project,
+    setProject((p) => ({
+      ...p,
       limesurvey: {
         url: url.trim() || undefined,
         username: username.trim() || undefined,
         surveyId: surveyId.trim() ? Number(surveyId) : undefined,
       },
       updatedAt: new Date().toISOString(),
-    })
+    }))
   }
 
   const hasDesign = !!project.design && project.design.rows.length > 0
-  const canSubmit =
-    url.trim() && username.trim() && password.trim() && surveyId.trim() && hasDesign
+  const canSubmit = url.trim() && username.trim() && password.trim() && surveyId.trim() && hasDesign
+  const busy = status.kind === 'testing' || status.kind === 'pushing'
+  const canTest = !!url && !!username && !!password && !busy
 
   const callApi = async (testOnly: boolean) => {
     persist()
@@ -57,7 +63,7 @@ export default function LimeSurveyPush({
           username: username.trim(),
           password,
           surveyId: Number(surveyId),
-          project,
+          project: getProject(),
           testOnly,
         }),
       })
@@ -69,11 +75,7 @@ export default function LimeSurveyPush({
           log: body.log ?? [],
         })
       } else {
-        setStatus({
-          kind: 'error',
-          message: body.error ?? 'Unknown error',
-          log: body.log,
-        })
+        setStatus({ kind: 'error', message: body.error ?? 'Unknown error', log: body.log })
       }
     } catch (e) {
       setStatus({ kind: 'error', message: (e as Error).message })
@@ -81,148 +83,167 @@ export default function LimeSurveyPush({
   }
 
   const downloadLss = () => {
-    if (!project.design) return
-    const xml = buildSurveyLss(project)
-    const blob = new Blob([xml], { type: 'application/xml' })
-    const u = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = u
-    a.download = `${project.slug}.lss`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(u)
+    const latest = getProject()
+    if (!latest.design) return
+    downloadBlob(buildSurveyLss(latest), `${latest.slug}.lss`, 'application/xml')
   }
 
-  const busy = status.kind === 'testing' || status.kind === 'pushing'
+  const missing = [
+    !url.trim() && 'URL',
+    !surveyId.trim() && 'survey ID',
+    !username.trim() && 'username',
+    !password.trim() && 'password',
+  ].filter((m): m is string => !!m)
+
+  const summary = !hasDesign
+    ? 'No design to push. Generate or upload one first.'
+    : missing.length > 0
+      ? `Enter the ${joinNames(missing)} to push.`
+      : `Will push ${plural(project.design!.rows.length, 'choice task')} across ${plural(project.design!.numBlocks, 'block')}.`
 
   return (
-    <div className="rounded-xl bg-white ring-1 ring-neutral-200/60 shadow-sm p-5 space-y-5">
-      <div>
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-          LimeSurvey credentials
-        </h3>
-        <p className="text-[11px] text-neutral-500 mt-0.5">
-          Pushes choice tasks to an existing LimeSurvey instance via RemoteControl 2.
-          The password is sent only with this request and never stored.
-        </p>
-      </div>
+    <Panel
+      title="Push to LimeSurvey"
+      actions={
+        <>
+          <Tag tone="muted">Beta</Tag>
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Close
+            </Button>
+          )}
+        </>
+      }
+    >
+      <p className="-mt-2 max-w-[70ch] text-13 text-ink-3">
+        Pushes choice tasks to an existing LimeSurvey instance via RemoteControl 2. The password is
+        sent only with this request and never stored.
+      </p>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field
-          label="LimeSurvey URL"
-          required
-          hint="Base URL of your installation (e.g. https://survey.example.com)."
-        >
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onBlur={persist}
-            placeholder="https://survey.example.com"
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Survey ID" required hint="Numeric ID of the target survey.">
-          <input
-            type="number"
-            value={surveyId}
-            onChange={(e) => setSurveyId(e.target.value)}
-            onBlur={persist}
-            placeholder="123456"
-            className={`${inputCls} font-mono`}
-          />
-        </Field>
-        <Field label="Username" required>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onBlur={persist}
-            autoComplete="username"
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Password" required hint="Not stored.">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            className={inputCls}
-          />
-        </Field>
-      </div>
+      <form
+        className="mt-4"
+        aria-busy={busy}
+        onSubmit={(e) => e.preventDefault()}
+        aria-label="LimeSurvey credentials"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="LimeSurvey URL" hint="Base URL of your installation, for example https://survey.example.com.">
+            {(id, describedBy) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                type="url"
+                inputMode="url"
+                required
+                autoComplete="url"
+                autoFocus
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onBlur={persist}
+                placeholder="https://survey.example.com"
+              />
+            )}
+          </Field>
+          <Field label="Survey ID" hint="Numeric ID of the target survey.">
+            {(id, describedBy) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                type="number"
+                inputMode="numeric"
+                mono
+                required
+                value={surveyId}
+                onChange={(e) => setSurveyId(e.target.value)}
+                onBlur={persist}
+                placeholder="123456"
+              />
+            )}
+          </Field>
+          <Field label="Username">
+            {(id, describedBy) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                type="text"
+                required
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onBlur={persist}
+              />
+            )}
+          </Field>
+          <Field label="Password" hint="Not stored.">
+            {(id, describedBy) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
 
-      <div className="flex flex-wrap gap-3 pt-2 border-t border-neutral-100">
-        <button
-          onClick={() => callApi(true)}
-          disabled={!url || !username || !password || busy}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md ring-1 ring-neutral-200 text-sm hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Test connection
-        </button>
-        <button
-          onClick={() => callApi(false)}
-          disabled={!canSubmit || busy}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          <Upload size={14} />
-          {status.kind === 'pushing' ? 'Pushing…' : 'Push to LimeSurvey'}
-        </button>
-        <span className="ml-auto text-xs text-neutral-500 self-center">
-          {hasDesign
-            ? `Will push ${project.design!.rows.length} choice tasks across ${project.design!.numBlocks} block(s).`
-            : 'No design to push. Generate or upload one first.'}
-        </span>
-      </div>
+        <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-4">
+          <Button onClick={() => callApi(true)} disabled={!canTest}>
+            {status.kind === 'testing' ? 'Testing…' : 'Test connection'}
+          </Button>
+          <Button icon={<Upload />} onClick={() => callApi(false)} disabled={!canSubmit || busy}>
+            {status.kind === 'pushing' ? 'Pushing…' : 'Push to LimeSurvey'}
+          </Button>
+          <span className="text-13 text-ink-3 sm:ml-auto">{summary}</span>
+        </div>
+      </form>
 
-      {(status.kind === 'ok' || status.kind === 'error') && (
-        <div
-          className={`rounded-lg ring-1 border-l-4 p-3 text-sm ${
-            status.kind === 'ok'
-              ? 'bg-emerald-50/70 ring-emerald-200 border-emerald-400 text-emerald-900'
-              : 'bg-red-50/70 ring-red-200 border-red-400 text-red-900'
-          }`}
-        >
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="font-semibold inline-flex items-center gap-1.5">
+      <div aria-live="polite" className="empty:hidden">
+        {(status.kind === 'ok' || status.kind === 'error') && (
+          <div
+            className={cx(
+              'mt-4 rounded-card border p-3 text-13',
+              status.kind === 'ok' ? 'border-ok/30 bg-ok-bg' : 'border-risk/30 bg-risk-bg',
+            )}
+          >
+            <p
+              className={cx(
+                'inline-flex items-center gap-1.5 font-semibold',
+                status.kind === 'ok' ? 'text-ok' : 'text-risk',
+              )}
+            >
               {status.kind === 'ok' ? <Check size={13} /> : <XMark size={13} />}
               {status.kind === 'ok' ? 'Success' : 'Error'}
-            </span>
+            </p>
+            <p className="mt-1 break-words leading-snug text-ink">{status.message}</p>
+            {status.log && status.log.length > 0 && (
+              <details className="mt-2 text-12">
+                <summary className="focus-ring cursor-pointer rounded-bar text-ink-2 hover:text-ink">
+                  Log ({plural(status.log.length, 'line')})
+                </summary>
+                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-well border border-line bg-surface p-2 font-mono text-12 leading-relaxed text-ink">
+                  {status.log.join('\n')}
+                </pre>
+              </details>
+            )}
           </div>
-          <div className="leading-snug mb-2">{status.message}</div>
-          {status.log && status.log.length > 0 && (
-            <details className="text-xs">
-              <summary className="cursor-pointer opacity-80 hover:opacity-100">
-                Log ({status.log.length} line{status.log.length !== 1 ? 's' : ''})
-              </summary>
-              <pre className="mt-2 bg-white/60 ring-1 ring-current/10 rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap">
-                {status.log.join('\n')}
-              </pre>
-            </details>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-lg ring-1 ring-neutral-200 bg-neutral-50/40 p-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-medium text-neutral-700">Fallback: download LSS file</div>
-          <div className="text-[11px] text-neutral-500 mt-0.5">
-            If your LimeSurvey isn&apos;t reachable from this server, or you prefer
-            manual import, download a complete LSS and import via Survey settings →
-            Import.
-          </div>
-        </div>
-        <button
-          onClick={downloadLss}
-          disabled={!hasDesign}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-        >
-          <Download size={12} />
-          Download .lss
-        </button>
+        )}
       </div>
-    </div>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-card bg-surface-2 p-3 shadow-hairline sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-13 font-medium text-ink">Fallback: download the LSS file</p>
+          <p className="mt-0.5 text-12 text-ink-3">
+            If your LimeSurvey server isn’t reachable from this app, or you prefer a manual import,
+            download a complete LSS and import it via Survey settings → Import.
+          </p>
+        </div>
+        <Button size="sm" icon={<Download />} onClick={downloadLss} disabled={!hasDesign}>
+          Download .lss
+        </Button>
+      </div>
+    </Panel>
   )
 }

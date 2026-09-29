@@ -86,6 +86,21 @@ function encodeAlt(
   return x
 }
 
+// One choice task's design matrix, coded exactly as the D-error codes it
+// (non-opt-out alternatives only, in project order).
+export function encodeChoiceTask(
+  project: Project,
+  row: DesignRow,
+  layoutIn?: ParamLayout,
+): { altIds: string[]; X: number[][] } {
+  const layout = layoutIn ?? paramLayout(project)
+  const altsActive = activeAlts(project)
+  return {
+    altIds: altsActive.map((a) => a.id),
+    X: altsActive.map((alt) => encodeAlt(project, row, alt.id, layout, altsActive)),
+  }
+}
+
 export function buildPriorVector(project: Project, layout?: ParamLayout): number[] {
   const lay = layout ?? paramLayout(project)
   const beta = new Array(lay.totalK).fill(0)

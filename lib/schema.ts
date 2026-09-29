@@ -62,6 +62,8 @@ export type Alternative = {
   // Optional image rendered in the column header alongside the alternative
   // label (preview + exports). Same caveats as Level.imageUrl.
   imageUrl?: string
+  // 1-based identity colour/glyph slot, bound to the id so reordering never repaints.
+  identitySlot?: number
 }
 
 export type ColumnMappingRole = 'task' | 'block' | 'cell' | 'context' | 'ignore'

@@ -1,7 +1,7 @@
 import type { Attribute, AttributePivot, Level } from './schema'
 
 // Numeric formatter that respects displayFormat. Used by both the React
-// preview (ChoiceTaskTable) and the HTML-table renderer (renderTaskAsHtml).
+// preview (choice-tasks/RespondentCard) and the HTML-table renderer (renderTaskAsHtml).
 export function formatNumeric(
   value: number,
   unit: string | undefined,
