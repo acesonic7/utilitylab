@@ -1,18 +1,22 @@
 import type { Project, Attribute, DesignRow } from './schema'
 import { cellKey } from './validation'
-import { det, zeros, dot } from './linalg'
+import { logDetSPD, zeros, dot } from './linalg'
 import { firstViolation } from './constraints'
 import { findLevelInAttr, getLevelsForAlt } from './levelLookup'
 
-// ── encoding ────────────────────────────────────────────────────────────────
-// Effects coding with the FIRST level (position 0) as the reference.
+// ── model ───────────────────────────────────────────────────────────────────
+// MNL with dummy coding; the first level (lowest position) is the base.
 //   - numeric:                 1 parameter, the raw value
-//   - boolean (2 levels):      1 parameter, position 0 → -1, position 1 → +1
-//   - categorical with K lvls: K-1 parameters,
-//                                 position 0 (reference) → vector of -1s,
-//                                 position p (p≥1)       → e_{p-1} (one-hot)
-// When an attribute does not apply to an alternative, that alternative's slice
-// of the parameter vector is filled with zeros.
+//   - boolean / categorical:   K-1 parameters; base level → all zeros,
+//                              level with index p (p≥1) → e_{p-1}
+// Constants:
+//   - with an opt-out: the opt-out is the zero-utility reference. Labeled designs get
+//     one constant per designed alternative; unlabeled designs one shared constant.
+//   - without an opt-out: labeled designs get a constant for every designed
+//     alternative except the last one (the reference); unlabeled designs none.
+// When an attribute does not apply to an alternative, its slice stays zero.
+
+export const CODING = 'dummy' as const
 
 export function paramCount(attr: Attribute): number {
   if (attr.type === 'numeric') return 1
@@ -21,8 +25,13 @@ export function paramCount(attr: Attribute): number {
 
 export type ParamLayout = {
   offsets: Record<string, number> // attrId → start index
-  ascStart: number // start index of alt-specific constants (-1 if none)
-  ascCount: number // J-1 for labeled, 0 otherwise
+  ascStart: number // start index of constants (-1 if none)
+  ascCount: number
+  // Designed alternatives with their own constant (labeled), in order of ascStart + i.
+  ascAltIds: string[]
+  // Unlabeled design with an opt-out: one constant shared by every designed alternative.
+  sharedConstant: boolean
+  optOutModelled: boolean
   totalK: number
 }
 
@@ -30,50 +39,58 @@ function activeAlts(project: Project) {
   return project.alternatives.filter((a) => !a.isOptOut)
 }
 
+// Alternatives that enter the model: designed ones, then any opt-out (zero utility).
+export function modelAlts(project: Project) {
+  return [...activeAlts(project), ...project.alternatives.filter((a) => a.isOptOut)]
+}
+
 export function paramLayout(project: Project): ParamLayout {
-  const ascNeeded =
-    project.experimentType === 'labeled' ? Math.max(0, activeAlts(project).length - 1) : 0
+  const active = activeAlts(project)
+  const optOut = project.alternatives.some((a) => a.isOptOut)
+  const labeled = project.experimentType === 'labeled'
+  const ascAltIds = labeled ? (optOut ? active : active.slice(0, -1)).map((a) => a.id) : []
+  const sharedConstant = !labeled && optOut && active.length > 0
+  const ascCount = ascAltIds.length + (sharedConstant ? 1 : 0)
   const offsets: Record<string, number> = {}
-  let k = 0
-  // ASCs come first (one per non-reference alt; last active alt is the reference)
-  const ascStart = ascNeeded > 0 ? 0 : -1
-  k += ascNeeded
+  let k = ascCount
   for (const attr of project.attributes) {
     offsets[attr.id] = k
     k += paramCount(attr)
   }
-  return { offsets, ascStart, ascCount: ascNeeded, totalK: k }
+  return {
+    offsets,
+    ascStart: ascCount > 0 ? 0 : -1,
+    ascCount,
+    ascAltIds,
+    sharedConstant,
+    optOutModelled: optOut,
+    totalK: k,
+  }
+}
+
+function sortedLevels(attr: Attribute) {
+  return attr.levels.slice().sort((a, b) => a.position - b.position)
 }
 
 function encodeLevel(attr: Attribute, levelId: string): number[] {
   const lvl = findLevelInAttr(attr, levelId)
   if (!lvl) return new Array(paramCount(attr)).fill(0)
   if (attr.type === 'numeric') return [Number(lvl.value)]
-  const K = attr.levels.length
-  if (K < 2) return [0]
-  const vec = new Array(K - 1).fill(0)
-  if (lvl.position === 0) {
-    return vec.fill(-1)
-  }
-  vec[lvl.position - 1] = 1
+  const levels = sortedLevels(attr)
+  if (levels.length < 2) return [0]
+  const vec = new Array(levels.length - 1).fill(0)
+  const idx = levels.findIndex((l) => l.id === lvl.id)
+  if (idx >= 1) vec[idx - 1] = 1
   return vec
 }
 
-function encodeAlt(
-  project: Project,
-  row: DesignRow,
-  altId: string,
-  layout: ParamLayout,
-  altsActive: ReturnType<typeof activeAlts>,
-): number[] {
+function encodeAlt(project: Project, row: DesignRow, altId: string, layout: ParamLayout): number[] {
   const x = new Array(layout.totalK).fill(0)
-  // ASC: dummy for non-reference active alts (last active alt is reference)
-  if (layout.ascCount > 0) {
-    const idx = altsActive.findIndex((a) => a.id === altId)
-    if (idx >= 0 && idx < altsActive.length - 1) {
-      x[layout.ascStart + idx] = 1
-    }
-  }
+  const alt = project.alternatives.find((a) => a.id === altId)
+  if (!alt || alt.isOptOut) return x
+  if (layout.sharedConstant) x[layout.ascStart] = 1
+  const ascIdx = layout.ascAltIds.indexOf(altId)
+  if (ascIdx >= 0) x[layout.ascStart + ascIdx] = 1
   for (const attr of project.attributes) {
     const applies = attr.appliesTo === 'all' || attr.appliesTo.includes(altId)
     if (!applies) continue
@@ -87,18 +104,42 @@ function encodeAlt(
 }
 
 // One choice task's design matrix, coded exactly as the D-error codes it
-// (non-opt-out alternatives only, in project order).
+// (designed alternatives in project order, then any opt-out).
 export function encodeChoiceTask(
   project: Project,
   row: DesignRow,
   layoutIn?: ParamLayout,
 ): { altIds: string[]; X: number[][] } {
   const layout = layoutIn ?? paramLayout(project)
-  const altsActive = activeAlts(project)
+  const alts = modelAlts(project)
   return {
-    altIds: altsActive.map((a) => a.id),
-    X: altsActive.map((alt) => encodeAlt(project, row, alt.id, layout, altsActive)),
+    altIds: alts.map((a) => a.id),
+    X: alts.map((alt) => encodeAlt(project, row, alt.id, layout)),
   }
+}
+
+// Why a design with this many choice tasks cannot identify every parameter, or null.
+export function identificationIssue(project: Project, numTasks: number): string | null {
+  const alts = modelAlts(project)
+  const J = alts.length
+  if (activeAlts(project).length < 1 || J < 2) {
+    return 'A design needs at least two alternatives in each choice task (an opt-out counts as one).'
+  }
+  const K = paramLayout(project).totalK
+  if (K === 0) return 'Add at least one attribute with two or more levels.'
+  for (const attr of project.attributes) {
+    for (const alt of activeAlts(project)) {
+      const applies = attr.appliesTo === 'all' || attr.appliesTo.includes(alt.id)
+      if (applies && getLevelsForAlt(attr, alt.id).length < 2) {
+        return `“${attr.name}” needs at least two levels for ${alt.label}.`
+      }
+    }
+  }
+  const min = Math.ceil(K / (J - 1))
+  if (numTasks < min) {
+    return `This model has ${K} parameters, so it needs at least ${min} choice tasks (each choice task among ${J} alternatives gives ${J - 1} pieces of information).`
+  }
+  return null
 }
 
 export function buildPriorVector(project: Project, layout?: ParamLayout): number[] {
@@ -118,20 +159,11 @@ export function buildPriorVector(project: Project, layout?: ParamLayout): number
 // Human-readable labels for each prior coefficient
 export function priorLabels(attr: Attribute): string[] {
   if (attr.type === 'numeric') return [attr.name]
-  if (attr.type === 'boolean') {
-    const t = attr.levels.find((l) => Boolean(l.value) === true)
-    const f = attr.levels.find((l) => Boolean(l.value) === false)
-    const tLabel = t?.displayValue ?? 'true'
-    const fLabel = f?.displayValue ?? 'false'
-    return [`${tLabel} vs ${fLabel}`]
-  }
-  if (attr.levels.length < 2) return ['—']
-  const ref = attr.levels[0]
-  const refLabel = ref.displayValue ?? String(ref.value)
-  return attr.levels.slice(1).map((l) => {
-    const lvlLabel = l.displayValue ?? String(l.value)
-    return `${lvlLabel} vs ${refLabel}`
-  })
+  const levels = sortedLevels(attr)
+  if (levels.length < 2) return ['—']
+  const label = (l: (typeof levels)[number]) => l.displayValue ?? String(l.value)
+  const base = label(levels[0])
+  return levels.slice(1).map((l) => `${label(l)} vs ${base}`)
 }
 
 // ── D-error ─────────────────────────────────────────────────────────────────
@@ -146,14 +178,13 @@ export function computeDError(
   const K = layout.totalK
   if (K === 0 || rows.length === 0) return Infinity
   const beta = priors ?? buildPriorVector(project, layout)
-  const altsActive = activeAlts(project)
-  const J = altsActive.length
+  const alts = modelAlts(project)
+  const J = alts.length
+  if (J < 2) return Infinity
 
   const F = zeros(K, K)
   for (const row of rows) {
-    const X: number[][] = altsActive.map((alt) =>
-      encodeAlt(project, row, alt.id, layout, altsActive),
-    )
+    const X: number[][] = alts.map((alt) => encodeAlt(project, row, alt.id, layout))
     const V = X.map((x) => dot(beta, x))
     const maxV = Math.max(...V)
     const expV = V.map((v) => Math.exp(v - maxV))
@@ -178,9 +209,9 @@ export function computeDError(
       }
     }
   }
-  const detF = det(F)
-  if (!isFinite(detF) || detF <= 0) return Infinity
-  return Math.pow(detF, -1 / K)
+  const ld = logDetSPD(F)
+  if (!Number.isFinite(ld)) return Infinity
+  return Math.exp(-ld / K)
 }
 
 // ── modified Federov search ─────────────────────────────────────────────────
@@ -334,7 +365,8 @@ export function dOptimalSearch(project: Project, input: DOptimalInput): DOptimal
     const start = randomRows(project, input.numTasks, input.numBlocks, input.rng)
     const r = federovImprove(project, start, layout, beta, maxPasses)
     totalPasses += r.passes
-    if (r.dError < bestD) {
+    // Keep the first start even when nothing is identified, so a run never returns no rows.
+    if (r.dError < bestD || bestRows === null) {
       bestD = r.dError
       bestRows = r.rows
     }

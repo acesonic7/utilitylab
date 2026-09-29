@@ -41,11 +41,23 @@ export type GenerationResult = {
   multistartsRun?: number
   dError?: number
   constraintFailures?: number
+  // The seed actually used, so the run can be reproduced.
+  seed: number
 }
 
-// xorshift32, deterministic when seeded
-function makeRng(seed?: number) {
-  let state = (seed ?? Math.floor(Math.random() * 0xffffffff)) | 0
+// Seeds are integers in [1, 2^32 − 1]; anything else is folded into that range.
+export function normalizeSeed(seed: number): number {
+  if (!Number.isFinite(seed)) return 1
+  return (Math.floor(Math.abs(seed)) % 0xffffffff) || 1
+}
+
+export function randomSeed(): number {
+  return normalizeSeed(1 + Math.floor(Math.random() * 0xfffffffe))
+}
+
+// xorshift32, deterministic for a given seed
+function makeRng(seed: number) {
+  let state = seed | 0
   if (state === 0) state = 0xa5a5a5a5
   return () => {
     state ^= state << 13
@@ -319,7 +331,8 @@ function compositeScore(
 
 export function generateDesign(project: Project, input: GenerateInput): GenerationResult {
   const weights = input.weights ?? defaultScoreWeights
-  const rng = makeRng(input.seed)
+  const seed = input.seed === undefined ? randomSeed() : normalizeSeed(input.seed)
+  const rng = makeRng(seed)
 
   if (input.method === 'd-optimal') {
     const result = dOptimalSearch(project, {
@@ -337,6 +350,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       iterationsRun: result.totalPasses,
       multistartsRun: result.multistartsRun,
       dError: result.dError,
+      seed,
     }
   }
 
@@ -350,6 +364,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       metrics,
       iterationsRun: 1,
       constraintFailures: failedTasks,
+      seed,
     }
   }
 
@@ -385,6 +400,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       },
     iterationsRun: bestIter,
     constraintFailures: totalFailures > 0 ? totalFailures : undefined,
+    seed,
   }
 }
 

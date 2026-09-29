@@ -202,19 +202,22 @@ function Caption({
       {project.experimentType === 'labeled' ? (
         <>
           <b className="font-semibold text-ink-2">Labeled:</b>{' '}
-          {asc.length > 0 && ref
-            ? `alternative-specific constants are estimated for ${joinNames(asc)}; ${ref.label} is the reference alternative.`
-            : 'alternative-specific constants are estimated for every alternative but the last, which is the reference; add another alternative to estimate one.'}
+          {optOuts.length > 0 && asc.length > 0
+            ? `alternative-specific constants are estimated for ${joinNames(asc)}, relative to the opt-out.`
+            : asc.length > 0 && ref
+              ? `alternative-specific constants are estimated for ${joinNames(asc)}; ${ref.label} is the reference alternative.`
+              : 'alternative-specific constants are estimated for every alternative but the last, which is the reference; add another alternative to estimate one.'}
         </>
       ) : (
         <>
-          <b className="font-semibold text-ink-2">Unlabeled (generic):</b> no
-          alternative-specific constants are estimated; the alternatives differ only in their
-          attribute levels.
+          <b className="font-semibold text-ink-2">Unlabeled (generic):</b>{' '}
+          {optOuts.length > 0
+            ? 'the alternatives differ only in their attribute levels; one constant, shared by the designed alternatives, measures the pull of the opt-out.'
+            : 'no alternative-specific constants are estimated; the alternatives differ only in their attribute levels.'}
         </>
       )}{' '}
       {optOuts.length > 0
-        ? `${joinNames(optOuts.map((id) => id.label))} ${optOuts.length === 1 ? 'is an opt-out: it has' : 'are opt-outs: they have'} no attribute levels and ${optOuts.length === 1 ? 'is' : 'are'} left out of the D-error.`
+        ? `${joinNames(optOuts.map((id) => id.label))} ${optOuts.length === 1 ? 'is an opt-out: it has' : 'are opt-outs: they have'} no attribute levels and ${optOuts.length === 1 ? 'is' : 'are'} the zero-utility reference in the D-error.`
         : 'To make a “neither” or status quo alternative an opt-out, tick Opt-out under its More settings (⋯) or use Add opt-out.'}{' '}
       The order here is the column order in choice tasks and exports.
     </p>

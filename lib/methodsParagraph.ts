@@ -194,16 +194,24 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
     // D-error
     if (health.K > 0) {
       const priors = health.priorsNonZero ? 'non-zero' : 'zero'
-      const asc = paramLayout(project).ascCount
-      const ascText = asc > 0 ? `, including ${word(asc)} alternative-specific ${s(asc, 'constant')}` : ''
-      const optOutNote = optOuts.length > 0 ? '; the D-error treats choices as forced (the opt-out is not modelled)' : ''
+      const layout = paramLayout(project)
+      const asc = layout.ascCount
+      const ascText = layout.sharedConstant
+        ? ', including a constant shared by the designed alternatives'
+        : asc > 0
+          ? `, including ${word(asc)} alternative-specific ${s(asc, 'constant')}`
+          : ''
+      const optOutNote = optOuts.length > 0 ? ', with the opt-out as the zero-utility reference' : ''
+      const coding = project.attributes.some((a) => a.type !== 'numeric')
+        ? '; categorical attributes were dummy coded against their first level'
+        : ''
       if (health.dError !== null) {
         w.t(`Under a multinomial logit (MNL) model with ${priors} priors (K = ${health.K} parameters${ascText}), the design’s D-error was `)
         w.m(formatDError(health.dError))
-        w.t(`${optOutNote}. `)
+        w.t(`${optOutNote}${coding}. `)
       } else {
         w.t(
-          `Under a multinomial logit (MNL) model with ${priors} priors (K = ${health.K} parameters${ascText}), the design’s D-error could not be computed because the information matrix is singular${optOutNote}. `,
+          `Under a multinomial logit (MNL) model with ${priors} priors (K = ${health.K} parameters${ascText}), the design’s D-error could not be computed because the design does not identify every parameter (the information matrix is singular). `,
         )
       }
     }

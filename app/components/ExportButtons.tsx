@@ -58,6 +58,13 @@ export default function ExportButtons({
         howTo={
           <>
             Import: <Path>Library → Survey Templates → New → Import</Path>.
+            {(project.design?.numBlocks ?? 1) > 1 && (
+              <span className="mt-1.5 block text-caution">
+                The QSF shows each respondent one block. The TXT can’t: after importing it, add a
+                Randomizer in Survey flow that presents 1 of the {project.design?.numBlocks} blocks,
+                evenly (the file’s Setup notes explain how).
+              </span>
+            )}
           </>
         }
         error={errors.qualtrics}

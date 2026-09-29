@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import type { Project } from '@/lib/schema'
-import { blockGroupConfig, buildQuestionLsq } from '@/lib/limesurveyExport'
+import { blockRelevance, buildBlockAssignmentLsq, buildQuestionLsq } from '@/lib/limesurveyExport'
 
 // LimeSurvey RemoteControl 2 (RC2) JSON-RPC client.
 // Endpoint: {LS_URL}/index.php/admin/remotecontrol
@@ -154,45 +154,52 @@ export async function POST(req: NextRequest) {
   }
   log.push(`Survey ${surveyId} verified`)
 
-  // ── 3. create groups (one per block), random group flag for 1-of-N ─────
-  const blockGroupIds: Record<number, number> = {}
-  for (let b = 1; b <= project.design.numBlocks; b++) {
-    const cfg = blockGroupConfig(b)
-    const add = await rpc(endpoint, 'add_group', [
+  // ── 3. block assignment + one group per block ──────────────────────────
+  // A hidden equation question (BLK) draws one block per respondent; each block's
+  // group is shown only when BLK equals its number. Group names stay neutral in
+  // case the survey displays them.
+  const numBlocks = project.design.numBlocks
+  const fail = async (error: string) => {
+    await rpc(endpoint, 'release_session_key', [sessionKey])
+    return Response.json({ ok: false, error, log }, { status: 200 })
+  }
+
+  if (numBlocks > 1) {
+    const addAssign = await rpc(endpoint, 'add_group', [sessionKey, surveyId, 'Block assignment', ''])
+    if (!addAssign.ok || typeof addAssign.result !== 'number') {
+      return fail(`add_group failed for block assignment: ${addAssign.ok ? 'unexpected response' : addAssign.error}`)
+    }
+    const lsq = buildBlockAssignmentLsq(numBlocks)
+    const imp = await rpc(endpoint, 'import_question', [
       sessionKey,
       surveyId,
-      cfg.groupName,
-      cfg.groupDescription,
+      addAssign.result,
+      Buffer.from(lsq.xml, 'utf8').toString('base64'),
+      'lsq',
     ])
+    if (!imp.ok) return fail(`Could not add the block assignment question: ${imp.error}`)
+    log.push(`Created block assignment (gid=${addAssign.result}, question ${lsq.questionCode})`)
+  }
+
+  const blockGroupIds: Record<number, number> = {}
+  for (let b = 1; b <= numBlocks; b++) {
+    const add = await rpc(endpoint, 'add_group', [sessionKey, surveyId, 'Choice tasks', ''])
     if (!add.ok || typeof add.result !== 'number') {
-      await rpc(endpoint, 'release_session_key', [sessionKey])
-      return Response.json(
-        {
-          ok: false,
-          error: `add_group failed for block ${b}: ${add.ok ? 'unexpected response' : add.error}`,
-          log,
-        },
-        { status: 200 },
-      )
+      return fail(`add_group failed for block ${b}: ${add.ok ? 'unexpected response' : add.error}`)
     }
     const gid = add.result
     blockGroupIds[b] = gid
-    log.push(`Created group "Block ${b}" (gid=${gid})`)
-
-    // Set randomization group + randomize questions within the group
-    const setProps = await rpc(endpoint, 'set_group_properties', [
-      sessionKey,
-      gid,
-      {
-        randomization_group: cfg.randomizationGroup,
-        random_order: cfg.randomizeQuestions ? 1 : 0,
-      },
-    ])
-    if (!setProps.ok) {
-      log.push(
-        `  (warning) set_group_properties failed for gid=${gid}: ${setProps.error}`,
-      )
+    if (numBlocks > 1) {
+      const setProps = await rpc(endpoint, 'set_group_properties', [
+        sessionKey,
+        gid,
+        { grelevance: blockRelevance(b) },
+      ])
+      if (!setProps.ok) {
+        return fail(`Could not limit group ${gid} to block ${b}: ${setProps.error}`)
+      }
     }
+    log.push(`Created group for block ${b} (gid=${gid})`)
   }
 
   // ── 4. push questions ──────────────────────────────────────────────────
@@ -205,16 +212,7 @@ export async function POST(req: NextRequest) {
     }
     const lsq = buildQuestionLsq(project, row, questionIndex++)
     const importData = Buffer.from(lsq.xml, 'utf8').toString('base64')
-    const add = await rpc(endpoint, 'import_question', [
-      sessionKey,
-      surveyId,
-      gid,
-      importData,
-      'lsq',
-      undefined, // newQuestionTitle (use from XML)
-      undefined, // newQuestion (use from XML)
-      undefined, // newQuestionHelp
-    ])
+    const add = await rpc(endpoint, 'import_question', [sessionKey, surveyId, gid, importData, 'lsq'])
     if (!add.ok) {
       log.push(
         `  (failed) ${lsq.questionTitle} (${lsq.questionCode}): ${add.error}`,
