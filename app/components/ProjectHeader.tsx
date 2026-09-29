@@ -7,7 +7,8 @@ import { designShape } from '@/lib/diagnostics'
 import { designSignature } from '@/lib/signature'
 import { formatDay } from '@/lib/formatDate'
 import { useDesignHealth } from './DesignHealth'
-import { Refresh } from './Icons'
+import { Download, Folder } from './Icons'
+import { useLibrary } from './library/LibraryContext'
 import { AltGlyph, Button, CopyButton, Gauge, Stat, Tag, type GaugeBand } from './ui'
 
 // Same thresholds as analyzeSample in lib/sampleSize.ts: low < 25, borderline < 50, good.
@@ -52,13 +53,8 @@ function SignatureText({ project, signature }: { project: Project; signature: st
   )
 }
 
-export default function ProjectHeader({
-  project,
-  onReset,
-}: {
-  project: Project
-  onReset: () => void
-}) {
+export default function ProjectHeader({ project }: { project: Project }) {
+  const lib = useLibrary()
   const health = useDesignHealth()
   const shape = designShape(project)
   const signature = designSignature(project, { dError: health.dError })
@@ -89,9 +85,14 @@ export default function ProjectHeader({
             <span>Created {created}</span>
           </span>
         )}
-        <Button variant="ghost" size="sm" icon={<Refresh />} onClick={onReset} className="ml-auto">
-          Reset to example
-        </Button>
+        <span className="ml-auto flex items-center gap-1">
+          <Button variant="ghost" size="sm" icon={<Folder />} onClick={lib.openLibrary}>
+            Studies
+          </Button>
+          <Button variant="ghost" size="sm" icon={<Download />} onClick={() => lib.download(project.id)}>
+            Download project
+          </Button>
+        </span>
       </div>
 
       <h1

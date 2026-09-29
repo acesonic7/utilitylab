@@ -20,7 +20,9 @@ without manual reformatting, scripting, or tool-switching.
 - Define **alternatives** (labeled or generic), **attributes**, **levels**
 - Per-attribute settings: type (numeric / categorical / boolean), unit, preference direction, applies-to scope (for labeled experiments)
 - **Constraints**: forbid implausible level combinations within an alternative
-- Auto-saves to `localStorage`; reload-safe
+- **Study library**: several studies side by side (new blank, new from example, duplicate, delete), auto-saved in the browser
+- **Project files**: download a study as `.utilitylab.json` and open it again on any computer
+- **Earlier designs**: the last 10 replaced or cleared designs per study, restorable
 
 ### 2. Design source
 Two paths, switchable via tabs:
@@ -52,7 +54,7 @@ Files are generated client-side from current state.
 - PapaParse for CSV
 - Hand-rolled linear algebra for D-optimal computation (no heavy deps)
 
-Fully client-rendered. State lives in `localStorage`. No backend, no auth, no database.
+Fully client-rendered. Studies live in the browser's `localStorage` (one key per study); download project files to keep copies. No backend, no auth, no database.
 
 ## Local development
 
@@ -105,8 +107,8 @@ app/
       Field.tsx               # shared field wrapper
 lib/
   schema.ts                   # all data types
-  example.ts                  # default project (EU urban commute)
-  defaults.ts, slug.ts, persist.ts
+  example.ts                  # default project (Athens, Greece mode choice)
+  defaults.ts, slug.ts, library.ts, projectFile.ts
   validation.ts               # dominance / balance / correlation / overlap
   constraints.ts              # forbidden-combination engine
   designGenerator.ts          # random + balanced + dispatch

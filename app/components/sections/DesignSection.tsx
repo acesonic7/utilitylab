@@ -7,6 +7,7 @@ import { Button, EmptyState, SectionHeader } from '../ui'
 import { Upload } from '../Icons'
 import DesignSource, { DESIGN_PANEL_IDS, type DesignSourceMode } from '../DesignSource'
 import { DesignMatrix } from '../design/DesignMatrix'
+import { DesignHistory } from '../design/DesignHistory'
 
 export default function DesignSection({
   project,
@@ -32,7 +33,7 @@ export default function DesignSection({
   }
 
   const clear = () => {
-    if (!window.confirm('Clear the design? Its choice tasks will be removed from this project.')) return
+    if (!window.confirm('Clear the design? You can restore it later from Earlier designs.')) return
     setProject((p) => ({ ...p, design: null }))
     // The Clear button unmounts with the matrix; the header button stays put.
     uploadBtn.current?.focus()
@@ -102,6 +103,8 @@ export default function DesignSection({
           />
         )
       )}
+
+      <DesignHistory project={project} />
     </>
   )
 }

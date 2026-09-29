@@ -65,7 +65,7 @@ export default function ProjectInfoEditor({
                 aria-describedby={describedBy}
                 aria-required="true"
                 value={project.name}
-                placeholder="e.g. Urban Commute Mode Choice"
+                placeholder="e.g. Athens, Greece mode choice experiment"
                 onChange={(e) => stamp({ name: e.target.value })}
               />
             )}

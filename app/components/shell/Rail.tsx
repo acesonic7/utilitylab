@@ -7,11 +7,20 @@ import { cx } from '../ui'
 import { ChoiceSetLegend } from './ChoiceSetLegend'
 import { SECTIONS, onSectionLinkClick } from './sections'
 import { HereDot, StatusMarker } from './StatusMarker'
+import { WalkthroughLink } from './Walkthrough'
 import { useSectionStatus } from './useSectionStatus'
 
 export const APP_VERSION = pkg.version
 
-export function Rail({ project, current }: { project: Project; current: SectionId }) {
+export function Rail({
+  project,
+  current,
+  onOpenTour,
+}: {
+  project: Project
+  current: SectionId
+  onOpenTour: () => void
+}) {
   const { goTo } = useWorkspaceActions()
   const status = useSectionStatus(project)
 
@@ -63,9 +72,12 @@ export function Rail({ project, current }: { project: Project; current: SectionI
 
       <ChoiceSetLegend project={project} />
 
-      <div className="mt-auto flex items-center justify-between gap-2 px-2 text-12 text-ink-3">
-        <span className="font-mono">v{APP_VERSION}</span>
-        <CreditLink />
+      <div className="mt-auto flex flex-col gap-2 px-2 text-12 text-ink-3">
+        <WalkthroughLink onOpen={onOpenTour} className="self-start" />
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono">v{APP_VERSION}</span>
+          <CreditLink />
+        </div>
       </div>
     </aside>
   )
