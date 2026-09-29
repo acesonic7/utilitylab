@@ -66,7 +66,7 @@ export default function DesignSection({
               onClick={() => toggle('generate')}
               className="aria-expanded:border-ink aria-expanded:bg-surface-3"
             >
-              Generate D-efficient design…
+              Generate design…
             </Button>
           </div>
         }
@@ -91,7 +91,7 @@ export default function DesignSection({
                   {uploadLabel}
                 </Button>
                 <Button size="sm" onClick={() => setOpen('generate')}>
-                  Generate D-efficient design…
+                  Generate design…
                 </Button>
                 {design && (
                   <Button variant="danger" size="sm" onClick={clear}>

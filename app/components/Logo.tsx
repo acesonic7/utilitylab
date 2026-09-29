@@ -1,5 +1,4 @@
-// U-bowl mark: U for utility, the bowl is the D-error surface the design search minimises,
-// and the citron dot is the choice resting at the optimum.
+// Matrix U: a U drawn in the cells of a 3×3 design matrix, with one cell chosen in citron.
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg
@@ -10,7 +9,7 @@ export function Logo({ size = 28 }: { size?: number }) {
       aria-hidden="true"
       focusable="false"
     >
-      {/* Dark keeps a dark tile so the citron dot still reads against it. */}
+      {/* Dark keeps a dark tile so the citron cell still reads against it. */}
       <rect
         x="0.5"
         y="0.5"
@@ -20,14 +19,13 @@ export function Logo({ size = 28 }: { size?: number }) {
         strokeWidth="1"
         className="fill-ink stroke-ink dark:fill-surface-3 dark:stroke-line-2"
       />
-      <path
-        d="M8.5 7.2v7.4a5.5 5.5 0 0 0 11 0V7.2"
-        fill="none"
-        className="stroke-paper dark:stroke-ink"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
-      <circle cx="14" cy="16.7" r="2.25" className="fill-accent" />
+      <rect x="5.0" y="5.0" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="5.0" y="11.5" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="11.5" y="18.0" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="18.0" y="5.0" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="18.0" y="11.5" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="18.0" y="18.0" width="5" height="5" rx="1.3" className="fill-paper dark:fill-ink" />
+      <rect x="5.0" y="18.0" width="5" height="5" rx="1.3" className="fill-accent" />
     </svg>
   )
 }
