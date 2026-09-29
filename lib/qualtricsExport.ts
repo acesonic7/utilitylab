@@ -85,6 +85,19 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
 // Documented at https://www.qualtrics.com/support/survey-platform/survey-module/survey-tools/import-and-export-surveys/
 // Simple, well-supported, easy to verify by eye. Good fallback.
 
+export function txtBlockingNotes(numBlocks: number): string {
+  if (numBlocks <= 1) return ''
+  return [
+    '[[Question:DB]]',
+    '[[ID:BLOCKING_NOTES]]',
+    '<h3>⚠ Setup notes — DELETE BEFORE DEPLOYING</h3>',
+    `<p>This design has <strong>${numBlocks} blocks</strong>, and each respondent must see only one of them. The TXT import cannot set that up, so as imported every respondent would see every block.</p>`,
+    '<p>In <strong>Survey flow</strong>: add a <strong>Randomizer</strong>, move every “Block N” under it, set it to randomly present <strong>1</strong> of the elements and tick <strong>Evenly present elements</strong>. Then delete this Setup notes block.</p>',
+    '<p>The QSF file from UtilityLab includes this randomizer already.</p>',
+    '',
+  ].join('\n')
+}
+
 export function exportTxt(project: Project): string {
   if (!project.design) throw new Error('Project has no design')
   const altOrder = project.builder.alternativeOrder
@@ -93,11 +106,14 @@ export function exportTxt(project: Project): string {
 
   const lines: string[] = ['[[AdvancedFormat]]', '']
 
-  // If any attribute is pivoted, prepend a Description Block reminding the
-  // importer to wire up piped text per the project's wiring guide.
+  // Advanced Format cannot express survey flow, so blocking and pivot wiring are
+  // spelled out in a Setup notes block the researcher deletes after setup.
+  const blockNotes = txtBlockingNotes(project.design.numBlocks)
   const commentBlock = buildTxtCommentBlock(project)
-  if (commentBlock) {
-    lines.push('[[Block:Setup notes]]', '', commentBlock)
+  if (blockNotes || commentBlock) {
+    lines.push('[[Block:Setup notes]]', '')
+    if (blockNotes) lines.push(blockNotes)
+    if (commentBlock) lines.push(commentBlock)
   }
 
   for (let b = 1; b <= project.design.numBlocks; b++) {

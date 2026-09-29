@@ -1,48 +1,4 @@
-// Tiny linear algebra: determinant via LU decomposition with partial pivoting.
-// Designed for small dense matrices (K ≤ ~30) used in D-error calculation.
-
-export function det(M: number[][]): number {
-  const n = M.length
-  if (n === 0) return 1
-  if (M[0].length !== n) return NaN
-
-  // Copy to mutable work matrix
-  const A: number[][] = M.map((row) => [...row])
-  let sign = 1
-  let result = 1
-
-  for (let i = 0; i < n; i++) {
-    // Partial pivot: largest |A[r][i]| for r = i..n-1
-    let maxRow = i
-    let maxVal = Math.abs(A[i][i])
-    for (let r = i + 1; r < n; r++) {
-      const v = Math.abs(A[r][i])
-      if (v > maxVal) {
-        maxVal = v
-        maxRow = r
-      }
-    }
-    if (maxVal < 1e-15) return 0 // singular
-
-    if (maxRow !== i) {
-      const tmp = A[i]
-      A[i] = A[maxRow]
-      A[maxRow] = tmp
-      sign = -sign
-    }
-
-    const pivot = A[i][i]
-    result *= pivot
-
-    for (let r = i + 1; r < n; r++) {
-      const factor = A[r][i] / pivot
-      for (let c = i; c < n; c++) {
-        A[r][c] -= factor * A[i][c]
-      }
-    }
-  }
-  return sign * result
-}
+// Tiny dense linear algebra for the D-error (K ≤ ~30).
 
 export function zeros(rows: number, cols: number): number[][] {
   const m: number[][] = []
@@ -54,4 +10,32 @@ export function dot(a: number[], b: number[]): number {
   let s = 0
   for (let i = 0; i < a.length; i++) s += a[i] * b[i]
   return s
+}
+
+// log det of a symmetric positive semi-definite matrix via Cholesky. Returns -Infinity
+// when the matrix is singular relative to its scale (a pivot below 1e-10 × the largest
+// diagonal), so near-singular information matrices never yield a plausible D-error.
+export function logDetSPD(M: number[][]): number {
+  const n = M.length
+  if (n === 0) return 0
+  let scale = 0
+  for (let i = 0; i < n; i++) scale = Math.max(scale, Math.abs(M[i][i]))
+  if (!(scale > 0)) return -Infinity
+  const tol = 1e-10 * scale
+  const L: number[][] = zeros(n, n)
+  let ld = 0
+  for (let j = 0; j < n; j++) {
+    let d = M[j][j]
+    for (let k = 0; k < j; k++) d -= L[j][k] * L[j][k]
+    if (!(d > tol)) return -Infinity
+    const ljj = Math.sqrt(d)
+    L[j][j] = ljj
+    ld += 2 * Math.log(ljj)
+    for (let i = j + 1; i < n; i++) {
+      let s = M[i][j]
+      for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k]
+      L[i][j] = s / ljj
+    }
+  }
+  return ld
 }

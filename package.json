@@ -10,7 +10,8 @@
     "validate": "tsx scripts/runValidation.ts",
     "export": "tsx scripts/runExport.ts",
     "preview": "tsx scripts/runPreview.ts",
-    "diagnostics": "tsx scripts/runDiagnostics.ts"
+    "diagnostics": "tsx scripts/runDiagnostics.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",
@@ -27,6 +28,7 @@
     "postcss": "^8.5.12",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   }
 }

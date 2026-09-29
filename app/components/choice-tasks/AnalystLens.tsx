@@ -71,14 +71,15 @@ export function AnalystLens({
   const nOverlap = findings.filter((f) => f.check === 'overlap').length
   const violations = violated.length
 
-  // Under zero priors every modelled alternative is equally likely (1/J).
+  // Every modelled alternative, the opt-out included; under zero priors each gets 1/J.
   const probs = useMemo(
-    () =>
-      priorsNonZero
-        ? new Map(choiceProbabilities(project, row).map((p) => [p.altId, p.p]))
-        : new Map(alternatives.map((a) => [a.id, 1 / Math.max(1, alternatives.length)])),
-    [priorsNonZero, project, row, alternatives],
+    () => new Map(choiceProbabilities(project, row).map((p) => [p.altId, p.p])),
+    [project, row],
   )
+  const optOutP = project.alternatives
+    .filter((a) => a.isOptOut)
+    .reduce((sum, a) => sum + (probs.get(a.id) ?? 0), 0)
+  const modelJ = probs.size
 
   const cells = attributes.map((attr) => alternatives.map((alt) => cellFor(attr, alt, row)))
   const valueOf = (attrId: string, altId: string): ValueCell | null => {
@@ -283,7 +284,7 @@ export function AnalystLens({
                     <span className="font-semibold text-ink">Choice probabilities</span>
                     <span
                       className="text-ink-3"
-                      title={priorsNonZero ? undefined : `Equal (1/J) under zero priors, J = ${J}`}
+                      title={priorsNonZero ? undefined : `Equal (1/J) under zero priors, J = ${modelJ}`}
                     >
                       MNL · priors: {priorsNonZero ? 'set' : 'zero'}
                       {!priorsNonZero && <span className="sr-only">, so each alternative is equally likely</span>}
@@ -314,6 +315,13 @@ export function AnalystLens({
                   )
                 })}
               </tr>
+              {optOutP > 0 && (
+                <tr>
+                  <td colSpan={J + 1} className="pt-1.5 text-right text-12 text-ink-3">
+                    Opt-out: <span className="tnum font-mono text-ink-2">{(optOutP * 100).toFixed(optOutP < 0.1 ? 1 : 0)}%</span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </ScrollX>

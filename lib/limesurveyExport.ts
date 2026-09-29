@@ -40,7 +40,154 @@ function answerCode(idx: number): string {
   return `A${idx + 1}`
 }
 
-// ── LSQ (single question) ─────────────────────────────────────────────────
+// ── shared question model ─────────────────────────────────────────────────
+// LimeSurvey 4+ links translations and attributes by qid and answers' texts by aid,
+// so every question and answer carries ids that are local to the file.
+
+export const BLOCK_QUESTION_CODE = 'BLK'
+
+type Attr = { attribute: string; value: string }
+
+type QuestionSpec = {
+  qid: number
+  gid: number
+  type: string
+  code: string
+  text: string
+  order: number
+  answers: string[]
+  attributes: Attr[]
+}
+
+type AnswerSpec = { aid: number; qid: number; code: string; order: number; text: string }
+
+// Keeps a block's choice tasks in the block but shuffles their order per respondent.
+function blockRandomGroup(block: number): string {
+  return `blk${block}`
+}
+
+export function blockRelevance(block: number): string {
+  return `${BLOCK_QUESTION_CODE}.NAOK == ${block}`
+}
+
+// Picks one block per respondent on first display and keeps it on reload; saved as BLK.
+export function blockAssignmentEquation(numBlocks: number): string {
+  return `{if(is_empty(${BLOCK_QUESTION_CODE}.NAOK), rand(1, ${numBlocks}), ${BLOCK_QUESTION_CODE}.NAOK)}`
+}
+
+function choiceTaskSpec(project: Project, row: DesignRow, qid: number, gid: number, order: number): QuestionSpec {
+  const attributes: Attr[] =
+    project.design && project.design.numBlocks > 1
+      ? [{ attribute: 'random_group', value: blockRandomGroup(row.block) }]
+      : []
+  return {
+    qid,
+    gid,
+    type: 'L',
+    code: questionCode(row.taskId, row.block),
+    text: renderTaskAsHtml(project, row),
+    order,
+    answers: activeAlts(project).map((a) => a.label),
+    attributes,
+  }
+}
+
+function blockQuestionSpec(numBlocks: number, qid: number, gid: number): QuestionSpec {
+  return {
+    qid,
+    gid,
+    type: '*',
+    code: BLOCK_QUESTION_CODE,
+    text: blockAssignmentEquation(numBlocks),
+    order: 1,
+    answers: [],
+    attributes: [{ attribute: 'hidden', value: '1' }],
+  }
+}
+
+function answersOf(q: QuestionSpec, firstAid: number): AnswerSpec[] {
+  return q.answers.map((text, i) => ({ aid: firstAid + i, qid: q.qid, code: answerCode(i), order: i + 1, text }))
+}
+
+function section(name: string, fields: string[], rows: string[]): string {
+  return `  <${name}>
+    <fields>
+${fields.map((f) => `      <fieldname>${f}</fieldname>`).join('\n')}
+    </fields>
+    <rows>
+${rows.join('\n')}
+    </rows>
+  </${name}>`
+}
+
+function row(cells: Record<string, string | number>): string {
+  const inner = Object.entries(cells)
+    .map(([k, v]) => `        <${k}>${v}</${k}>`)
+    .join('\n')
+  return `      <row>\n${inner}\n      </row>`
+}
+
+function questionSections(questions: QuestionSpec[], language: string, withSid: boolean): string {
+  const answers: AnswerSpec[] = []
+  for (const q of questions) answers.push(...answersOf(q, answers.length + 1))
+  const qRows = questions.map((q) =>
+    row({
+      qid: q.qid,
+      parent_qid: 0,
+      ...(withSid ? { sid: 1 } : {}),
+      gid: q.gid,
+      type: q.type,
+      title: escapeXml(q.code),
+      preg: '',
+      other: 'N',
+      mandatory: 'N',
+      question_order: q.order,
+      scale_id: 0,
+      same_default: 0,
+      relevance: 1,
+      encrypted: 'N',
+    }),
+  )
+  const qFields = ['qid', 'parent_qid', ...(withSid ? ['sid'] : []), 'gid', 'type', 'title', 'preg', 'other', 'mandatory', 'question_order', 'scale_id', 'same_default', 'relevance', 'encrypted']
+  const l10n = questions.map((q) => row({ qid: q.qid, question: cdata(q.text), help: '', language }))
+  const attrs = questions.flatMap((q) =>
+    q.attributes.map((a) => row({ qid: q.qid, attribute: a.attribute, value: cdata(a.value), language: '' })),
+  )
+  const parts = [
+    section('questions', qFields, qRows),
+    section('question_l10ns', ['qid', 'question', 'help', 'language'], l10n),
+  ]
+  if (answers.length) {
+    parts.push(
+      section(
+        'answers',
+        ['aid', 'qid', 'code', 'sortorder', 'scale_id'],
+        answers.map((a) => row({ aid: a.aid, qid: a.qid, code: a.code, sortorder: a.order, scale_id: 0 })),
+      ),
+      section(
+        'answer_l10ns',
+        ['aid', 'answer', 'language'],
+        answers.map((a) => row({ aid: a.aid, answer: cdata(a.text), language })),
+      ),
+    )
+  }
+  if (attrs.length) parts.push(section('question_attributes', ['qid', 'attribute', 'value', 'language'], attrs))
+  return parts.join('\n')
+}
+
+function lsqDocument(q: QuestionSpec, language: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <LimeSurveyDocType>Question</LimeSurveyDocType>
+  <DBVersion>${DB_VERSION}</DBVersion>
+  <languages>
+    <language>${language}</language>
+  </languages>
+${questionSections([q], language, false)}
+</document>`
+}
+
+// ── LSQ (single question, API push) ───────────────────────────────────────
 
 export type LsqOutput = {
   xml: string
@@ -54,184 +201,40 @@ export function buildQuestionLsq(
   questionIndex: number,
   language = 'en',
 ): LsqOutput {
-  const alts = activeAlts(project)
-  const qCode = questionCode(row.taskId, row.block)
-  const html = renderTaskAsHtml(project, row)
-
-  const answersRows = alts
-    .map(
-      (_, i) => `      <row>
-        <code>${answerCode(i)}</code>
-        <sortorder>${i + 1}</sortorder>
-        <scale_id>0</scale_id>
-      </row>`,
-    )
-    .join('\n')
-
-  const answerL10nRows = alts
-    .map(
-      (alt) => `      <row>
-        <answer>${cdata(alt.label)}</answer>
-        <language>${language}</language>
-      </row>`,
-    )
-    .join('\n')
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<document>
-  <LimeSurveyDocType>Question</LimeSurveyDocType>
-  <DBVersion>${DB_VERSION}</DBVersion>
-  <languages>
-    <language>${language}</language>
-  </languages>
-  <questions>
-    <fields>
-      <fieldname>parent_qid</fieldname>
-      <fieldname>type</fieldname>
-      <fieldname>title</fieldname>
-      <fieldname>preg</fieldname>
-      <fieldname>other</fieldname>
-      <fieldname>mandatory</fieldname>
-      <fieldname>question_order</fieldname>
-      <fieldname>scale_id</fieldname>
-      <fieldname>same_default</fieldname>
-      <fieldname>relevance</fieldname>
-      <fieldname>encrypted</fieldname>
-    </fields>
-    <rows>
-      <row>
-        <parent_qid>0</parent_qid>
-        <type>L</type>
-        <title>${escapeXml(qCode)}</title>
-        <preg></preg>
-        <other>N</other>
-        <mandatory>N</mandatory>
-        <question_order>${questionIndex + 1}</question_order>
-        <scale_id>0</scale_id>
-        <same_default>0</same_default>
-        <relevance>1</relevance>
-        <encrypted>N</encrypted>
-      </row>
-    </rows>
-  </questions>
-  <question_l10ns>
-    <fields>
-      <fieldname>question</fieldname>
-      <fieldname>help</fieldname>
-      <fieldname>language</fieldname>
-    </fields>
-    <rows>
-      <row>
-        <question>${cdata(html)}</question>
-        <help></help>
-        <language>${language}</language>
-      </row>
-    </rows>
-  </question_l10ns>
-  <answers>
-    <fields>
-      <fieldname>code</fieldname>
-      <fieldname>sortorder</fieldname>
-      <fieldname>scale_id</fieldname>
-    </fields>
-    <rows>
-${answersRows}
-    </rows>
-  </answers>
-  <answer_l10ns>
-    <fields>
-      <fieldname>answer</fieldname>
-      <fieldname>language</fieldname>
-    </fields>
-    <rows>
-${answerL10nRows}
-    </rows>
-  </answer_l10ns>
-</document>`
-
-  return { xml, questionCode: qCode, questionTitle: `Choice task ${row.taskId}` }
+  const q = choiceTaskSpec(project, row, 1, 1, questionIndex + 1)
+  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: `Choice task ${row.taskId}` }
 }
 
-// ── LSS (full survey) ─────────────────────────────────────────────────────
-// For the download-and-import fallback path. Produces a complete survey with
-// one group per block, randomization-group set so respondents see one block.
+export function buildBlockAssignmentLsq(numBlocks: number, language = 'en'): LsqOutput {
+  const q = blockQuestionSpec(numBlocks, 1, 1)
+  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: 'Block assignment' }
+}
+
+// ── LSS (full survey, file download) ──────────────────────────────────────
+// With more than one block, group 1 holds the hidden BLK equation and each block's
+// group is shown only when BLK equals its number, so every respondent sees one block.
 
 export function buildSurveyLss(project: Project, language = 'en'): string {
   if (!project.design) throw new Error('Project has no design')
   const rows = project.design.rows
-  const blocks = Array.from({ length: project.design.numBlocks }, (_, b) => b + 1)
+  const numBlocks = project.design.numBlocks
+  const blocks = Array.from({ length: numBlocks }, (_, b) => b + 1)
+  const assign = numBlocks > 1
+  const gidFor = (b: number) => (assign ? b + 1 : b)
 
-  const groupRows = blocks
-    .map(
-      (b, i) => `      <row>
-        <gid>${b}</gid>
-        <sid>1</sid>
-        <group_order>${i + 1}</group_order>
-        <randomization_group>sp_blocks</randomization_group>
-        <grelevance>1</grelevance>
-      </row>`,
-    )
-    .join('\n')
+  const groups = [
+    ...(assign ? [{ gid: 1, order: 1, relevance: '1', name: 'Block assignment' }] : []),
+    ...blocks.map((b) => ({
+      gid: gidFor(b),
+      order: assign ? b + 1 : b,
+      relevance: assign ? blockRelevance(b) : '1',
+      name: numBlocks > 1 ? `Block ${b}` : 'Choice tasks',
+    })),
+  ]
 
-  const groupL10nRows = blocks
-    .map(
-      (b) => `      <row>
-        <gid>${b}</gid>
-        <group_name>${cdata(`Block ${b}`)}</group_name>
-        <description>${cdata(`Choice tasks for block ${b}`)}</description>
-        <language>${language}</language>
-      </row>`,
-    )
-    .join('\n')
-
-  let qid = 1
-  const questionRows: string[] = []
-  const questionL10nRows: string[] = []
-  const answerRows: string[] = []
-  const answerL10nRows: string[] = []
-  const alts = activeAlts(project)
-
-  for (const row of rows) {
-    const code = questionCode(row.taskId, row.block)
-    const html = renderTaskAsHtml(project, row)
-    questionRows.push(`      <row>
-        <qid>${qid}</qid>
-        <parent_qid>0</parent_qid>
-        <sid>1</sid>
-        <gid>${row.block}</gid>
-        <type>L</type>
-        <title>${escapeXml(code)}</title>
-        <preg></preg>
-        <other>N</other>
-        <mandatory>N</mandatory>
-        <question_order>${row.taskId}</question_order>
-        <scale_id>0</scale_id>
-        <same_default>0</same_default>
-        <relevance>1</relevance>
-        <encrypted>N</encrypted>
-      </row>`)
-    questionL10nRows.push(`      <row>
-        <qid>${qid}</qid>
-        <question>${cdata(html)}</question>
-        <help></help>
-        <language>${language}</language>
-      </row>`)
-    alts.forEach((alt, i) => {
-      answerRows.push(`      <row>
-        <qid>${qid}</qid>
-        <code>${answerCode(i)}</code>
-        <sortorder>${i + 1}</sortorder>
-        <scale_id>0</scale_id>
-      </row>`)
-      answerL10nRows.push(`      <row>
-        <qid>${qid}</qid>
-        <code>${answerCode(i)}</code>
-        <answer>${cdata(alt.label)}</answer>
-        <language>${language}</language>
-      </row>`)
-    })
-    qid++
-  }
+  const questions: QuestionSpec[] = []
+  if (assign) questions.push(blockQuestionSpec(numBlocks, 1, 1))
+  rows.forEach((r, i) => questions.push(choiceTaskSpec(project, r, questions.length + 1, gidFor(r.block), i + 1)))
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <document>
@@ -240,146 +243,47 @@ export function buildSurveyLss(project: Project, language = 'en'): string {
   <languages>
     <language>${language}</language>
   </languages>
-  <surveys>
-    <fields>
-      <fieldname>sid</fieldname>
-      <fieldname>language</fieldname>
-      <fieldname>active</fieldname>
-      <fieldname>format</fieldname>
-      <fieldname>anonymized</fieldname>
-      <fieldname>questionindex</fieldname>
-      <fieldname>showxquestions</fieldname>
-      <fieldname>showgroupinfo</fieldname>
-      <fieldname>showqnumcode</fieldname>
-      <fieldname>showwelcome</fieldname>
-    </fields>
-    <rows>
-      <row>
-        <sid>1</sid>
-        <language>${language}</language>
-        <active>N</active>
-        <format>G</format>
-        <anonymized>Y</anonymized>
-        <questionindex>0</questionindex>
-        <showxquestions>Y</showxquestions>
-        <showgroupinfo>B</showgroupinfo>
-        <showqnumcode>X</showqnumcode>
-        <showwelcome>Y</showwelcome>
-      </row>
-    </rows>
-  </surveys>
-  <surveys_languagesettings>
-    <fields>
-      <fieldname>surveyls_survey_id</fieldname>
-      <fieldname>surveyls_language</fieldname>
-      <fieldname>surveyls_title</fieldname>
-      <fieldname>surveyls_description</fieldname>
-    </fields>
-    <rows>
-      <row>
-        <surveyls_survey_id>1</surveyls_survey_id>
-        <surveyls_language>${language}</surveyls_language>
-        <surveyls_title>${cdata(project.name)}</surveyls_title>
-        <surveyls_description>${cdata(project.description ?? '')}</surveyls_description>
-      </row>
-    </rows>
-  </surveys_languagesettings>
-  <groups>
-    <fields>
-      <fieldname>gid</fieldname>
-      <fieldname>sid</fieldname>
-      <fieldname>group_order</fieldname>
-      <fieldname>randomization_group</fieldname>
-      <fieldname>grelevance</fieldname>
-    </fields>
-    <rows>
-${groupRows}
-    </rows>
-  </groups>
-  <group_l10ns>
-    <fields>
-      <fieldname>gid</fieldname>
-      <fieldname>group_name</fieldname>
-      <fieldname>description</fieldname>
-      <fieldname>language</fieldname>
-    </fields>
-    <rows>
-${groupL10nRows}
-    </rows>
-  </group_l10ns>
-  <questions>
-    <fields>
-      <fieldname>qid</fieldname>
-      <fieldname>parent_qid</fieldname>
-      <fieldname>sid</fieldname>
-      <fieldname>gid</fieldname>
-      <fieldname>type</fieldname>
-      <fieldname>title</fieldname>
-      <fieldname>preg</fieldname>
-      <fieldname>other</fieldname>
-      <fieldname>mandatory</fieldname>
-      <fieldname>question_order</fieldname>
-      <fieldname>scale_id</fieldname>
-      <fieldname>same_default</fieldname>
-      <fieldname>relevance</fieldname>
-      <fieldname>encrypted</fieldname>
-    </fields>
-    <rows>
-${questionRows.join('\n')}
-    </rows>
-  </questions>
-  <question_l10ns>
-    <fields>
-      <fieldname>qid</fieldname>
-      <fieldname>question</fieldname>
-      <fieldname>help</fieldname>
-      <fieldname>language</fieldname>
-    </fields>
-    <rows>
-${questionL10nRows.join('\n')}
-    </rows>
-  </question_l10ns>
-  <answers>
-    <fields>
-      <fieldname>qid</fieldname>
-      <fieldname>code</fieldname>
-      <fieldname>sortorder</fieldname>
-      <fieldname>scale_id</fieldname>
-    </fields>
-    <rows>
-${answerRows.join('\n')}
-    </rows>
-  </answers>
-  <answer_l10ns>
-    <fields>
-      <fieldname>qid</fieldname>
-      <fieldname>code</fieldname>
-      <fieldname>answer</fieldname>
-      <fieldname>language</fieldname>
-    </fields>
-    <rows>
-${answerL10nRows.join('\n')}
-    </rows>
-  </answer_l10ns>
+${section(
+  'surveys',
+  ['sid', 'language', 'active', 'format', 'anonymized', 'questionindex', 'showxquestions', 'showgroupinfo', 'showqnumcode', 'showwelcome'],
+  [
+    row({
+      sid: 1,
+      language,
+      active: 'N',
+      format: 'G',
+      anonymized: 'Y',
+      questionindex: 0,
+      showxquestions: 'N',
+      // Respondents never see which block they are in.
+      showgroupinfo: 'N',
+      showqnumcode: 'X',
+      showwelcome: 'Y',
+    }),
+  ],
+)}
+${section(
+  'surveys_languagesettings',
+  ['surveyls_survey_id', 'surveyls_language', 'surveyls_title', 'surveyls_description'],
+  [
+    row({
+      surveyls_survey_id: 1,
+      surveyls_language: language,
+      surveyls_title: cdata(project.name),
+      surveyls_description: cdata(project.description ?? ''),
+    }),
+  ],
+)}
+${section(
+  'groups',
+  ['gid', 'sid', 'group_order', 'randomization_group', 'grelevance'],
+  groups.map((g) => row({ gid: g.gid, sid: 1, group_order: g.order, randomization_group: '', grelevance: cdata(g.relevance) })),
+)}
+${section(
+  'group_l10ns',
+  ['gid', 'group_name', 'description', 'language'],
+  groups.map((g) => row({ gid: g.gid, group_name: cdata(g.name), description: '', language })),
+)}
+${questionSections(questions, language, true)}
 </document>`
-}
-
-// Per-block group properties for the API-push path.
-export type BlockGroupConfig = {
-  groupName: string
-  groupDescription: string
-  randomizationGroup: string // shared across blocks → 1-of-N
-  randomizeQuestions: boolean
-}
-
-export function blockGroupConfig(
-  blockNumber: number,
-  randomizeQuestions = true,
-): BlockGroupConfig {
-  return {
-    groupName: `Block ${blockNumber}`,
-    groupDescription: `Choice tasks for block ${blockNumber}`,
-    randomizationGroup: 'sp_blocks',
-    randomizeQuestions,
-  }
 }

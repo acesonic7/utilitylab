@@ -8,7 +8,7 @@ import {
   suggestNumTasks,
   type GenerationResult,
 } from '@/lib/designGenerator'
-import { paramCount, priorLabels } from '@/lib/dOptimal'
+import { identificationIssue, paramCount, priorLabels } from '@/lib/dOptimal'
 import { analyzeSample, type SampleStatus } from '@/lib/sampleSize'
 import { ArrowDown, Refresh } from './Icons'
 import { Field, Gauge, Input, NumberInput, Tag, cx, type GaugeBand, type TagTone } from './ui'
@@ -55,7 +55,8 @@ function settingsFrom(design: Design | null | undefined): Settings {
     method: params?.method ?? 'd-optimal',
     iterations: params?.iterations ?? 1000,
     multistarts: params?.multistarts ?? 5,
-    seed: params?.seed !== undefined ? String(params.seed) : '',
+    // Left empty so Re-generate draws a new seed; the seed used is shown with the design.
+    seed: '',
     weights: params?.scoreWeights ?? defaultScoreWeights,
   }
 }
@@ -101,7 +102,10 @@ export default function DesignGenerator({
   const suggestions = suggestNumTasks(project)
   const perRespondent = (numTasks / Math.max(1, numBlocks)).toFixed(numTasks % numBlocks === 0 ? 0 : 1)
 
+  const blocker = method === 'd-optimal' ? identificationIssue(project, numTasks) : null
+
   const run = () => {
+    if (identificationIssue(getProject(), numTasks) && method === 'd-optimal') return
     setGenerating(true)
     // Defer to next frame so the spinner shows
     requestAnimationFrame(() => {
@@ -128,9 +132,13 @@ export default function DesignGenerator({
           method,
           iterations: method === 'balanced' ? iterations : undefined,
           multistarts: method === 'd-optimal' ? multistarts : undefined,
-          seed: seedValue,
+          seed: result.seed,
           scoreWeights: weights,
         },
+      }
+      if (design.rows.length === 0) {
+        setGenerating(false)
+        return
       }
       generatedRows.current = result.rows
       edited.current = false
@@ -208,7 +216,7 @@ export default function DesignGenerator({
             </div>
           )}
         </div>
-        <Field label="Blocks" hint="Choice tasks split evenly across blocks; each respondent sees one block.">
+        <Field label="Blocks" hint="Choice tasks split evenly across blocks; each respondent sees one block (in Qualtrics TXT imports, after you add a randomizer).">
           {(id, describedBy) => (
             <NumberInput
               id={id}
@@ -353,14 +361,26 @@ export default function DesignGenerator({
       </Disclosure>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line pt-5">
-        <button type="button" onClick={run} disabled={generating} className={inkButtonClass('lg')}>
+        <button
+          type="button"
+          onClick={run}
+          disabled={generating || blocker !== null}
+          aria-describedby={blocker ? `${uid}-blocker` : undefined}
+          className={inkButtonClass('lg')}
+        >
           {generating && (
             <Refresh size={14} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
           )}
           {generating ? 'Generating…' : project.design ? 'Re-generate' : 'Generate design'}
         </button>
         <div role="status" className="min-w-0 flex-1">
-          {lastRun && !generating && <ResultSummary run={lastRun} />}
+          {blocker ? (
+            <p id={`${uid}-blocker`} className="text-13 font-medium text-risk">
+              {blocker}
+            </p>
+          ) : (
+            lastRun && !generating && <ResultSummary run={lastRun} />
+          )}
         </div>
       </div>
     </div>
@@ -375,13 +395,14 @@ function ResultSummary({ run }: { run: LastRun }) {
     <div className="text-13 text-ink-2">
       <p>
         <span className={fig}>{result.rows.length} choice tasks</span> generated
-        {result.dError !== undefined && (
+        {result.dError !== undefined && Number.isFinite(result.dError) && (
           <>
             {' '}
             · D-error <span className="tnum font-mono text-ink">{result.dError.toFixed(4)}</span>
           </>
         )}{' '}
         · score <span className="tnum font-mono text-ink">{result.score.toFixed(1)}</span>
+        {' '}· seed <span className="tnum font-mono text-ink">{result.seed}</span>
         {method === 'balanced' && (
           <span className="text-ink-3">
             {' '}
