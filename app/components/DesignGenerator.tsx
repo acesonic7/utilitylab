@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import type { Project, GenerationMethod, ScoreWeights } from '@/lib/schema'
+import { useEffect, useId, useRef, useState } from 'react'
+import type { Attribute, Design, GenerationMethod, Project, ScoreWeights } from '@/lib/schema'
 import {
   defaultScoreWeights,
   generateDesign,
@@ -10,40 +10,110 @@ import {
 } from '@/lib/designGenerator'
 import { paramCount, priorLabels } from '@/lib/dOptimal'
 import { analyzeSample, type SampleStatus } from '@/lib/sampleSize'
-import { ChevronDown, ChevronRight, Refresh } from './Icons'
-import Field, { inputCls } from './editors/Field'
+import { ArrowDown, Refresh } from './Icons'
+import { Field, Gauge, Input, NumberInput, Tag, cx, type GaugeBand, type TagTone } from './ui'
+import { Disclosure, inkButtonClass } from './design/controls'
+import { useLatestProject, type SetProject } from './ProjectStore'
+
+const METHODS: { value: GenerationMethod; title: string; subtitle: string }[] = [
+  { value: 'd-optimal', title: 'D-optimal', subtitle: 'Maximizes statistical efficiency for an MNL model' },
+  { value: 'balanced', title: 'Balanced search', subtitle: 'Best of K random candidates by validation score' },
+  { value: 'random', title: 'Random', subtitle: 'One-shot uniform random sampling' },
+]
+
+const WEIGHT_KEYS = ['balance', 'correlation', 'dominance', 'overlap'] as const
+const WEIGHT_LABELS: Record<(typeof WEIGHT_KEYS)[number], string> = {
+  balance: 'Balance',
+  correlation: 'Correlation',
+  dominance: 'Dominance',
+  overlap: 'Overlap',
+}
+
+type LastRun = {
+  result: GenerationResult
+  method: GenerationMethod
+  iterations: number
+  multistarts: number
+}
+
+type Settings = {
+  numTasks: number
+  numBlocks: number
+  method: GenerationMethod
+  iterations: number
+  multistarts: number
+  seed: string
+  weights: ScoreWeights
+}
+
+// Start from the current design's shape and, for a generated design, its settings.
+function settingsFrom(design: Design | null | undefined): Settings {
+  const params = design?.source === 'generated' ? design.generationParams : undefined
+  return {
+    numTasks: design ? Math.max(4, Math.min(200, design.rows.length || design.numTasks)) : 12,
+    numBlocks: design ? Math.max(1, Math.min(20, design.numBlocks)) : 1,
+    method: params?.method ?? 'd-optimal',
+    iterations: params?.iterations ?? 1000,
+    multistarts: params?.multistarts ?? 5,
+    seed: params?.seed !== undefined ? String(params.seed) : '',
+    weights: params?.scoreWeights ?? defaultScoreWeights,
+  }
+}
 
 export default function DesignGenerator({
   project,
   setProject,
 }: {
   project: Project
-  setProject: (p: Project) => void
+  setProject: SetProject
 }) {
-  const [numTasks, setNumTasks] = useState(12)
-  const [numBlocks, setNumBlocks] = useState(1)
-  const [method, setMethod] = useState<GenerationMethod>('balanced')
-  const [iterations, setIterations] = useState(1000)
-  const [multistarts, setMultistarts] = useState(5)
-  const [seed, setSeed] = useState('')
+  const [settings, setSettings] = useState(() => settingsFrom(project.design))
+  const { numTasks, numBlocks, method, iterations, multistarts, seed, weights } = settings
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [weights, setWeights] = useState<ScoreWeights>(defaultScoreWeights)
   const [generating, setGenerating] = useState(false)
-  const [lastResult, setLastResult] = useState<GenerationResult | null>(null)
+  const [lastRun, setLastRun] = useState<LastRun | null>(null)
+  const generatedRows = useRef<unknown>(null)
+  const seededFrom = useRef(project.design)
+  // True once the user changes a setting; cleared when a run or a new design re-seeds the form.
+  const edited = useRef(false)
+  const uid = useId()
+  const getProject = useLatestProject()
+
+  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    edited.current = true
+    setSettings((s) => (s[key] === value ? s : { ...s, [key]: value }))
+  }
+  const setNumTasks = (n: number) => set('numTasks', n)
+  const setNumBlocks = (n: number) => set('numBlocks', n)
+
+  // When the design is replaced from elsewhere (upload, reset, clear), drop the summary and,
+  // unless the user has changed the settings, re-seed them from the new design.
+  // The summary can render a beat before the generated design reaches this deferred view.
+  useEffect(() => {
+    const design = project.design
+    if (design === seededFrom.current) return
+    seededFrom.current = design
+    if (design && design.rows === generatedRows.current) return
+    setLastRun(null)
+    if (!edited.current) setSettings(settingsFrom(design))
+  }, [project.design])
 
   const suggestions = suggestNumTasks(project)
+  const perRespondent = (numTasks / Math.max(1, numBlocks)).toFixed(numTasks % numBlocks === 0 ? 0 : 1)
 
   const run = () => {
     setGenerating(true)
     // Defer to next frame so the spinner shows
     requestAnimationFrame(() => {
-      const result = generateDesign(project, {
+      const seedValue = seed.trim() === '' ? undefined : Number(seed)
+      // The latest structure, not this view's deferred copy.
+      const result = generateDesign(getProject(), {
         numTasks,
         numBlocks,
         method,
         iterations,
         multistarts,
-        seed: seed.trim() === '' ? undefined : Number(seed),
+        seed: seedValue,
         weights,
       })
       const design = {
@@ -58,18 +128,36 @@ export default function DesignGenerator({
           method,
           iterations: method === 'balanced' ? iterations : undefined,
           multistarts: method === 'd-optimal' ? multistarts : undefined,
-          seed: seed.trim() === '' ? undefined : Number(seed),
+          seed: seedValue,
           scoreWeights: weights,
         },
       }
-      setProject({ ...project, design, updatedAt: new Date().toISOString() })
-      setLastResult(result)
+      generatedRows.current = result.rows
+      edited.current = false
+      setProject((p) => ({ ...p, design, updatedAt: new Date().toISOString() }))
+      setLastRun({ result, method, iterations, multistarts })
       setGenerating(false)
     })
   }
 
+  const seedField = (hint: string) => (
+    <Field label="Random seed" optional hint={hint}>
+      {(id, describedBy) => (
+        <Input
+          id={id}
+          aria-describedby={describedBy}
+          inputMode="numeric"
+          value={seed}
+          onChange={(e) => set('seed', e.target.value.replace(/[^0-9-]/g, ''))}
+          placeholder="auto"
+          mono
+        />
+      )}
+    </Field>
+  )
+
   return (
-    <div className="rounded-xl bg-white ring-1 ring-neutral-200/60 shadow-sm p-5 space-y-5">
+    <div className="space-y-6">
       <SampleSizePanel
         project={project}
         setProject={setProject}
@@ -79,274 +167,256 @@ export default function DesignGenerator({
         setNumBlocks={setNumBlocks}
       />
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field
-          label="Choice tasks"
-          required
-          hint={`Total across all blocks. = ${(numTasks / Math.max(1, numBlocks)).toFixed(numTasks % numBlocks === 0 ? 0 : 1)} per respondent.`}
-        >
-          <input
-            type="number"
-            min={4}
-            max={200}
-            value={numTasks}
-            onChange={(e) => setNumTasks(Math.max(4, Math.min(200, Number(e.target.value))))}
-            className={inputCls}
-          />
+      <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+        <div className="min-w-0">
+          <Field label="Choice tasks" hint={`Total across all blocks: ${perRespondent} per respondent.`}>
+            {(id, describedBy) => (
+              <NumberInput
+                id={id}
+                aria-describedby={describedBy}
+                required
+                integer
+                min={4}
+                max={200}
+                emptyBehavior={0}
+                value={numTasks}
+                onValueChange={setNumTasks}
+              />
+            )}
+          </Field>
           {suggestions.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              <span className="text-[11px] text-neutral-500">Suggested:</span>
-              {suggestions.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setNumTasks(n)}
-                  className={`text-[11px] px-2 py-0.5 rounded-md ring-1 transition tabular-nums ${
-                    numTasks === n
-                      ? 'bg-neutral-900 text-white ring-neutral-900'
-                      : 'bg-white ring-neutral-200 text-neutral-700 hover:ring-neutral-300 hover:bg-neutral-50'
-                  }`}
-                  title={`${n} choice tasks (multiple of attribute level counts — perfect balance possible)`}
-                >
-                  {n}
-                </button>
-              ))}
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Suggested choice task counts">
+              <span className="mr-0.5 text-12 text-ink-3">Suggested:</span>
+              {suggestions.map((n) => {
+                const on = numTasks === n
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setNumTasks(n)}
+                    title={`${n} choice tasks (multiple of attribute level counts — perfect balance possible)`}
+                    className={cx(
+                      'focus-ring tnum inline-flex h-6 items-center rounded-pill border px-2 text-12 font-medium leading-none transition-colors',
+                      on ? 'border-ink bg-ink text-paper' : 'border-line-2 bg-surface text-ink-2 hover:border-ink-4 hover:text-ink',
+                    )}
+                  >
+                    {n}
+                  </button>
+                )
+              })}
             </div>
           )}
-        </Field>
-        <Field
-          label="Blocks"
-          required
-          hint="Choice tasks split evenly across blocks; each respondent sees one block."
-        >
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={numBlocks}
-            onChange={(e) => setNumBlocks(Math.max(1, Math.min(20, Number(e.target.value))))}
-            className={inputCls}
-          />
+        </div>
+        <Field label="Blocks" hint="Choice tasks split evenly across blocks; each respondent sees one block.">
+          {(id, describedBy) => (
+            <NumberInput
+              id={id}
+              aria-describedby={describedBy}
+              required
+              integer
+              min={1}
+              max={20}
+              emptyBehavior={0}
+              value={numBlocks}
+              onValueChange={setNumBlocks}
+            />
+          )}
         </Field>
       </div>
 
-      <Field label="Method" required>
-        <div className="flex gap-2">
-          <MethodChip
-            active={method === 'd-optimal'}
-            onClick={() => setMethod('d-optimal')}
-            title="D-optimal"
-            subtitle="Maximizes statistical efficiency for an MNL model"
-          />
-          <MethodChip
-            active={method === 'balanced'}
-            onClick={() => setMethod('balanced')}
-            title="Balanced search"
-            subtitle="Best of K random candidates by validation score"
-          />
-          <MethodChip
-            active={method === 'random'}
-            onClick={() => setMethod('random')}
-            title="Random"
-            subtitle="One-shot uniform random sampling"
-          />
+      <fieldset>
+        <legend className="mb-2 text-12 font-medium text-ink-2">Method</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {METHODS.map((m) => {
+            const on = method === m.value
+            return (
+              <label
+                key={m.value}
+                className={cx(
+                  'relative flex cursor-pointer gap-2.5 rounded-card border bg-surface px-3 py-2.5 transition-colors',
+                  'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink',
+                  on ? 'border-ink shadow-[inset_0_0_0_1px_rgb(var(--ink))]' : 'border-line-2 hover:border-ink-4',
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`${uid}-method`}
+                  value={m.value}
+                  checked={on}
+                  onChange={() => set('method', m.value)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'mt-0.5 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border',
+                    on ? 'border-ink' : 'border-ink-3',
+                  )}
+                >
+                  {on && <span className="size-1.5 rounded-full bg-ink" />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-14 font-semibold text-ink">{m.title}</span>
+                  <span className="mt-0.5 block text-12 text-ink-3">{m.subtitle}</span>
+                </span>
+              </label>
+            )
+          })}
         </div>
-      </Field>
+      </fieldset>
 
       {method === 'balanced' && (
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Iterations">
-            <input
-              type="number"
-              min={10}
-              max={50000}
-              step={100}
-              value={iterations}
-              onChange={(e) =>
-                setIterations(Math.max(10, Math.min(50000, Number(e.target.value))))
-              }
-              className={inputCls}
-            />
-            <p className="text-[11px] text-neutral-500 mt-1">
-              More iterations → better designs but slower. 1000 is fast and usually enough.
-            </p>
+        <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+          <Field
+            label="Iterations"
+            hint="More iterations → better designs but slower. 1000 is fast and usually enough."
+          >
+            {(id, describedBy) => (
+              <NumberInput
+                id={id}
+                aria-describedby={describedBy}
+                integer
+                min={10}
+                max={50000}
+                step={100}
+                emptyBehavior={0}
+                value={iterations}
+                onValueChange={(n) => set('iterations', n)}
+              />
+            )}
           </Field>
-          <Field label="Random seed (optional)">
-            <input
-              type="text"
-              value={seed}
-              onChange={(e) => setSeed(e.target.value.replace(/[^0-9-]/g, ''))}
-              placeholder="auto"
-              className={`${inputCls} font-mono`}
-            />
-            <p className="text-[11px] text-neutral-500 mt-1">
-              Use the same seed to reproduce a design exactly.
-            </p>
-          </Field>
+          {seedField('Use the same seed to reproduce a design exactly.')}
         </div>
       )}
 
       {method === 'd-optimal' && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Multistarts">
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={multistarts}
-                onChange={(e) =>
-                  setMultistarts(Math.max(1, Math.min(50, Number(e.target.value))))
-                }
-                className={inputCls}
-              />
-              <p className="text-[11px] text-neutral-500 mt-1">
-                Independent random starts. Each runs a Federov local search to
-                convergence; the best result wins.
-              </p>
+          <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+            <Field
+              label="Multistarts"
+              hint="Independent random starts. Each runs a Federov local search to convergence; the best result wins."
+            >
+              {(id, describedBy) => (
+                <NumberInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  integer
+                  min={1}
+                  max={50}
+                  emptyBehavior={0}
+                  value={multistarts}
+                  onValueChange={(n) => set('multistarts', n)}
+                />
+              )}
             </Field>
-            <Field label="Random seed (optional)">
-              <input
-                type="text"
-                value={seed}
-                onChange={(e) => setSeed(e.target.value.replace(/[^0-9-]/g, ''))}
-                placeholder="auto"
-                className={`${inputCls} font-mono`}
-              />
-              <p className="text-[11px] text-neutral-500 mt-1">
-                Same seed + same priors → identical design.
-              </p>
-            </Field>
+            {seedField('Same seed + same priors → identical design.')}
           </div>
           <PriorsPanel project={project} setProject={setProject} />
         </>
       )}
 
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 transition"
-        >
-          {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          Score weights (advanced)
-        </button>
-        {showAdvanced && (
-          <div className="grid grid-cols-4 gap-3 mt-3 p-3 rounded-lg bg-neutral-50/60 ring-1 ring-neutral-200/60">
-            {(['balance', 'correlation', 'dominance', 'overlap'] as const).map((k) => (
-              <div key={k}>
-                <label className="block text-[11px] font-medium text-neutral-500 uppercase tracking-wider mb-1">
-                  {k}
-                </label>
-                <input
-                  type="number"
+      {method === 'random' && (
+        <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+          {seedField('Use the same seed to reproduce a design exactly.')}
+        </div>
+      )}
+
+      <Disclosure
+        id={`${uid}-weights`}
+        label="Score weights (advanced)"
+        open={showAdvanced}
+        onToggle={() => setShowAdvanced(!showAdvanced)}
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {WEIGHT_KEYS.map((k) => (
+            <Field key={k} label={WEIGHT_LABELS[k]}>
+              {(id) => (
+                <NumberInput
+                  id={id}
+                  size="sm"
+                  mono
                   min={0}
                   step={0.1}
+                  emptyBehavior={0}
                   value={weights[k]}
-                  onChange={(e) =>
-                    setWeights({ ...weights, [k]: Number(e.target.value) })
-                  }
-                  className={`${inputCls} text-xs`}
+                  onValueChange={(n) => set('weights', { ...weights, [k]: n })}
                 />
-              </div>
-            ))}
-            <div className="col-span-4 text-[11px] text-neutral-500">
-              Higher weight = the search penalizes that issue more strongly. Defaults
-              treat 1 dominated/overlapping choice task as roughly equal to 50% balance
-              deviation or |r|=0.5.
-            </div>
-          </div>
-        )}
-      </div>
+              )}
+            </Field>
+          ))}
+        </div>
+        <p className="mt-3 text-12 text-ink-3">
+          Higher weight = the search penalizes that issue more strongly. Defaults treat 1
+          dominated/overlapping choice task as roughly equal to 50% balance deviation or |r|=0.5.
+        </p>
+      </Disclosure>
 
-      <div className="flex items-center gap-3 pt-2 border-t border-neutral-100">
-        <button
-          onClick={run}
-          disabled={generating}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          {generating && <Refresh size={14} className="animate-spin" />}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line pt-5">
+        <button type="button" onClick={run} disabled={generating} className={inkButtonClass('lg')}>
+          {generating && (
+            <Refresh size={14} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+          )}
           {generating ? 'Generating…' : project.design ? 'Re-generate' : 'Generate design'}
         </button>
-        {lastResult && !generating && (
-          <ResultSummary
-            result={lastResult}
-            method={method}
-            iterations={iterations}
-            multistarts={multistarts}
-          />
-        )}
+        <div role="status" className="min-w-0 flex-1">
+          {lastRun && !generating && <ResultSummary run={lastRun} />}
+        </div>
       </div>
     </div>
   )
 }
 
-function ResultSummary({
-  result,
-  method,
-  iterations,
-  multistarts,
-}: {
-  result: GenerationResult
-  method: GenerationMethod
-  iterations: number
-  multistarts: number
-}) {
+function ResultSummary({ run }: { run: LastRun }) {
+  const { result, method, iterations, multistarts } = run
   const m = result.metrics
+  const fig = 'tnum font-medium text-ink'
   return (
-    <div className="text-xs text-neutral-600 leading-relaxed">
-      <span className="font-medium text-neutral-900 tabular-nums">
-        {result.rows.length} choice tasks
-      </span>{' '}
-      generated
-      {result.dError !== undefined && (
-        <>
-          {' '}
-          · D-error{' '}
-          <span className="font-mono tabular-nums text-neutral-900">
-            {result.dError.toFixed(4)}
+    <div className="text-13 text-ink-2">
+      <p>
+        <span className={fig}>{result.rows.length} choice tasks</span> generated
+        {result.dError !== undefined && (
+          <>
+            {' '}
+            · D-error <span className="tnum font-mono text-ink">{result.dError.toFixed(4)}</span>
+          </>
+        )}{' '}
+        · score <span className="tnum font-mono text-ink">{result.score.toFixed(1)}</span>
+        {method === 'balanced' && (
+          <span className="text-ink-3">
+            {' '}
+            (best of {iterations}, found at #{result.iterationsRun})
           </span>
-        </>
-      )}{' '}
-      · score{' '}
-      <span className="font-mono tabular-nums text-neutral-900">
-        {result.score.toFixed(1)}
-      </span>
-      {method === 'balanced' && (
+        )}
+        {method === 'd-optimal' && (
+          <span className="text-ink-3">
+            {' '}
+            ({multistarts} multistart{multistarts !== 1 ? 's' : ''}, {result.iterationsRun} Federov passes
+            total)
+          </span>
+        )}
+        {result.constraintFailures !== undefined && result.constraintFailures > 0 && (
+          <span className="font-medium text-caution">
+            {' '}
+            · {result.constraintFailures} constraint retr
+            {result.constraintFailures !== 1 ? 'ies' : 'y'} hit max
+          </span>
+        )}
+      </p>
+      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-12 text-ink-3">
         <span>
-          {' '}
-          (best of {iterations}, found at #{result.iterationsRun})
-        </span>
-      )}
-      {method === 'd-optimal' && (
-        <span>
-          {' '}
-          ({multistarts} multistart{multistarts !== 1 ? 's' : ''},{' '}
-          {result.iterationsRun} Federov passes total)
-        </span>
-      )}
-      {result.constraintFailures !== undefined && result.constraintFailures > 0 && (
-        <span className="text-amber-700">
-          {' '}
-          · {result.constraintFailures} constraint retr
-          {result.constraintFailures !== 1 ? 'ies' : 'y'} hit max
-        </span>
-      )}
-      <div className="text-[11px] text-neutral-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-        <span>
-          Balance{' '}
-          <span className="tabular-nums">{m.maxBalanceDeviationPct.toFixed(1)}%</span>
+          Balance <span className="tnum text-ink-2">{m.maxBalanceDeviationPct.toFixed(1)}%</span>
         </span>
         <span>
-          Correlation{' '}
-          <span className="tabular-nums">{m.maxAbsCorrelation.toFixed(2)}</span>
+          Correlation <span className="tnum text-ink-2">{m.maxAbsCorrelation.toFixed(2)}</span>
         </span>
         <span>
-          Dominance <span className="tabular-nums">{m.dominanceCount}</span>
+          Dominance <span className="tnum text-ink-2">{m.dominanceCount}</span>
         </span>
         <span>
-          Overlap <span className="tabular-nums">{m.overlapCount}</span>
+          Overlap <span className="tnum text-ink-2">{m.overlapCount}</span>
         </span>
-      </div>
+      </p>
     </div>
   )
 }
@@ -356,105 +426,89 @@ function PriorsPanel({
   setProject,
 }: {
   project: Project
-  setProject: (p: Project) => void
+  setProject: SetProject
 }) {
   const [open, setOpen] = useState(false)
+  const id = useId()
 
-  const updateAttrPriors = (attrId: string, priors: number[]) => {
-    setProject({
-      ...project,
-      attributes: project.attributes.map((a) =>
-        a.id === attrId ? { ...a, priors } : a,
-      ),
+  // One β at a time, merged into the latest attributes, so quick edits and newer Structure edits all survive.
+  const setPrior = (attrId: string, index: number, value: number) => {
+    setProject((p) => ({
+      ...p,
+      attributes: p.attributes.map((a) => {
+        if (a.id !== attrId) return a
+        const priors = Array.from({ length: Math.max(paramCount(a), index + 1) }, (_, i) => a.priors?.[i] ?? 0)
+        priors[index] = value
+        return { ...a, priors }
+      }),
       updatedAt: new Date().toISOString(),
-    })
+    }))
   }
 
   const totalParams = project.attributes.reduce((s, a) => s + paramCount(a), 0)
   const filledCount = project.attributes.reduce(
     (s, a) =>
-      s +
-      (a.priors ?? []).filter((v, i) => i < paramCount(a) && v !== 0 && !Number.isNaN(v))
-        .length,
+      s + (a.priors ?? []).filter((v, i) => i < paramCount(a) && v !== 0 && !Number.isNaN(v)).length,
     0,
   )
 
   return (
-    <div className="rounded-lg ring-1 ring-neutral-200 bg-neutral-50/40">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-neutral-100/60 transition rounded-lg"
-      >
-        <span className="inline-flex items-center gap-1.5 font-medium text-neutral-700">
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          Priors (β coefficients)
-        </span>
-        <span className="text-[11px] text-neutral-500">
-          {filledCount > 0
-            ? `${filledCount} of ${totalParams} non-zero`
-            : `uninformative (all zero) — ${totalParams} parameters`}
-        </span>
-      </button>
-      {open && (
-        <div className="px-3 pb-3 space-y-2">
-          <p className="text-[11px] text-neutral-500 leading-relaxed">
-            Expected coefficients per parameter. Leave at 0 if unknown — the search
-            then optimizes for designs robust under any β. Effects coding: the first
-            level of each categorical attribute is the reference.
-          </p>
-          {project.attributes.map((attr) => (
-            <PriorRow
-              key={attr.id}
-              attr={attr}
-              onChange={(priors) => updateAttrPriors(attr.id, priors)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <Disclosure
+      id={`${id}-priors`}
+      label="Priors (β coefficients)"
+      summary={
+        filledCount > 0
+          ? `${filledCount} of ${totalParams} non-zero`
+          : `uninformative (all zero) — ${totalParams} parameters`
+      }
+      open={open}
+      onToggle={() => setOpen(!open)}
+    >
+      <p className="text-12 text-ink-3">
+        Expected coefficients per parameter. Leave at 0 if unknown — the search then optimizes for
+        designs robust under any β. Effects coding: the first level of each categorical attribute is
+        the reference.
+      </p>
+      <div className="mt-3 divide-y divide-line">
+        {project.attributes.map((attr) => (
+          <PriorRow key={attr.id} attr={attr} onChange={(i, v) => setPrior(attr.id, i, v)} />
+        ))}
+      </div>
+    </Disclosure>
   )
 }
 
-function PriorRow({
-  attr,
-  onChange,
-}: {
-  attr: import('@/lib/schema').Attribute
-  onChange: (priors: number[]) => void
-}) {
+function PriorRow({ attr, onChange }: { attr: Attribute; onChange: (index: number, value: number) => void }) {
   const labels = priorLabels(attr)
   const k = paramCount(attr)
   const values: number[] = []
-  for (let i = 0; i < k; i++) {
-    values.push(attr.priors?.[i] ?? 0)
-  }
+  for (let i = 0; i < k; i++) values.push(attr.priors?.[i] ?? 0)
+  const uid = useId()
 
   return (
-    <div className="grid grid-cols-12 gap-2 items-center text-xs">
-      <div className="col-span-3 truncate font-medium text-neutral-700">
-        {attr.name}
-        <span className="text-neutral-400 font-normal ml-1">
+    <div className="grid gap-x-4 gap-y-2 py-2.5 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-center">
+      <div className="min-w-0 text-13">
+        <span className="font-medium text-ink">{attr.name}</span>{' '}
+        <span className="text-ink-3">
           ({attr.type}
           {k > 1 ? `, ${k} params` : ''})
         </span>
       </div>
-      <div className="col-span-9 grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 lg:grid-cols-3">
         {labels.map((label, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <span className="text-[10px] text-neutral-500 truncate flex-1" title={label}>
+          <div key={i} className="flex min-w-0 items-center gap-2">
+            <label htmlFor={`${uid}-${i}`} className="min-w-0 flex-1 truncate text-12 text-ink-3" title={label}>
               {label}
-            </span>
-            <input
-              type="number"
-              step="0.1"
+            </label>
+            <NumberInput
+              id={`${uid}-${i}`}
+              size="sm"
+              mono
+              step={0.1}
+              emptyBehavior={0}
+              className="tnum !w-20"
               value={values[i]}
-              onChange={(e) => {
-                const newPriors = [...values]
-                newPriors[i] = Number(e.target.value)
-                onChange(newPriors)
-              }}
-              className="w-16 bg-white rounded px-1.5 py-0.5 text-xs ring-1 ring-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 font-mono tabular-nums"
+              onValueChange={(n) => onChange(i, n)}
             />
           </div>
         ))}
@@ -472,7 +526,7 @@ function SampleSizePanel({
   setNumBlocks,
 }: {
   project: Project
-  setProject: (p: Project) => void
+  setProject: SetProject
   numTasks: number
   numBlocks: number
   setNumTasks: (n: number) => void
@@ -480,13 +534,15 @@ function SampleSizePanel({
 }) {
   const N = project.targetSampleSize ?? 0
   const analysis = analyzeSample(project, numTasks, numBlocks)
+  const titleId = useId()
 
-  const updateN = (n: number) => {
-    setProject({
-      ...project,
-      targetSampleSize: n > 0 ? n : undefined,
+  // Blank or 0 clears the target.
+  const updateN = (n: number | undefined) => {
+    setProject((p) => ({
+      ...p,
+      targetSampleSize: n !== undefined && n > 0 ? n : undefined,
       updatedAt: new Date().toISOString(),
-    })
+    }))
   }
 
   const applySuggestion = () => {
@@ -496,149 +552,111 @@ function SampleSizePanel({
   }
 
   return (
-    <div className="rounded-lg ring-1 ring-neutral-200 bg-neutral-50/40 p-4">
-      <div className="flex items-baseline justify-between mb-3">
-        <div>
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-            Target sample
-            <span className="text-neutral-400 ml-1.5 normal-case font-normal">
-              optional
-            </span>
+    <div role="group" aria-labelledby={titleId} className="rounded-card bg-surface-2 p-4 shadow-hairline">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <div className="min-w-[min(100%,15rem)] flex-1">
+          <h4 id={titleId} className="text-14 font-semibold text-ink">
+            Target sample <span className="font-normal text-ink-3">(optional)</span>
           </h4>
-          <p className="text-[11px] text-neutral-500 mt-0.5">
-            How many respondents do you expect? We&apos;ll suggest a balanced
-            choice-tasks / blocks split.
+          <p className="mt-0.5 text-12 text-ink-3">
+            How many respondents do you expect? We&apos;ll suggest a balanced choice tasks / blocks split.
           </p>
         </div>
         {analysis.status !== 'unset' && <SampleStatusBadge status={analysis.status} />}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="mt-3.5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
         <Field label="Respondents (N)">
-          <input
-            type="number"
-            min={0}
-            value={N || ''}
-            placeholder="e.g. 400"
-            onChange={(e) => updateN(Math.max(0, Number(e.target.value)))}
-            className={inputCls}
-          />
+          {(id) => (
+            <NumberInput
+              id={id}
+              integer
+              min={0}
+              emptyBehavior="clear"
+              value={N || undefined}
+              placeholder="e.g. 400"
+              onValueChange={updateN}
+            />
+          )}
         </Field>
-        <div>
-          <div className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
-            Suggestion
-          </div>
+        <div className="min-w-0">
+          <p className="text-12 font-medium text-ink-2">Suggestion</p>
           {analysis.suggestion ? (
-            <div className="text-sm">
-              <div className="font-medium text-neutral-900 tabular-nums">
-                {analysis.suggestion.tasks} choice tasks ·{' '}
-                {analysis.suggestion.blocks} block
+            <div className="mt-1.5">
+              <p className="tnum text-14 font-medium text-ink">
+                {analysis.suggestion.tasks} choice tasks · {analysis.suggestion.blocks} block
                 {analysis.suggestion.blocks !== 1 ? 's' : ''}
-                <span className="text-neutral-500 ml-1.5 text-[11px] font-normal">
+                <span className="ml-1.5 text-12 font-normal text-ink-3">
                   ({analysis.suggestion.tasksPerRespondent} per respondent)
                 </span>
-              </div>
+              </p>
               <button
+                type="button"
                 onClick={applySuggestion}
-                className="mt-1 text-[11px] underline underline-offset-4 text-indigo-600 hover:text-indigo-700 transition"
+                className="focus-ring mt-1 inline-flex items-center gap-1 rounded-bar text-12 font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink"
               >
-                Apply to inputs below ↓
+                Apply to the inputs below
+                <ArrowDown size={12} aria-hidden="true" />
               </button>
             </div>
           ) : (
-            <div className="text-sm text-neutral-400 italic">
-              Set N to see a suggestion
-            </div>
+            <p className="mt-1.5 text-13 text-ink-3">Set N to see a suggestion</p>
           )}
         </div>
       </div>
 
       {N > 0 && analysis.parameters > 0 && (
-        <div className="mt-3 text-[11px] text-neutral-500 leading-relaxed border-t border-neutral-200 pt-2">
-          Current config →{' '}
-          <span className="tabular-nums text-neutral-700">
-            {analysis.tasksPerRespondent.toFixed(1)}
-          </span>{' '}
-          choice tasks per respondent ·{' '}
-          <span className="tabular-nums text-neutral-700">
-            {analysis.totalObservations.toLocaleString()}
-          </span>{' '}
-          total observations ·{' '}
-          <span className="tabular-nums text-neutral-700 font-medium">
-            {analysis.observationsPerParameter.toFixed(0)}
-          </span>{' '}
-          per parameter
-          <span className="text-neutral-400">
-            {' '}({analysis.parameters} parameter
-            {analysis.parameters !== 1 ? 's' : ''} in this model)
-          </span>
+        <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-3">
+          <p className="min-w-[min(100%,15rem)] flex-1 text-12 text-ink-3">
+            Current configuration →{' '}
+            <span className="tnum text-ink-2">{analysis.tasksPerRespondent.toFixed(1)}</span> choice tasks
+            per respondent ·{' '}
+            <span className="tnum text-ink-2">{analysis.totalObservations.toLocaleString()}</span> total
+            observations ·{' '}
+            <span className="tnum font-medium text-ink">{analysis.observationsPerParameter.toFixed(0)}</span>{' '}
+            per parameter
+            <span>
+              {' '}
+              ({analysis.parameters} parameter{analysis.parameters !== 1 ? 's' : ''} in this model)
+            </span>
+          </p>
+          <div className="w-[140px]" title="Low below 25, borderline 25–50, good from 50">
+            <Gauge
+              value={analysis.observationsPerParameter}
+              min={0}
+              max={Math.max(100, Math.ceil(analysis.observationsPerParameter / 50) * 50)}
+              bands={obsBands(analysis.observationsPerParameter)}
+              ariaLabel="Observations per parameter"
+            />
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-const STATUS_STYLES: Record<SampleStatus, { ring: string; dot: string; label: string }> = {
-  good: {
-    ring: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-    dot: 'bg-emerald-500',
-    label: 'Sufficient power',
-  },
-  borderline: {
-    ring: 'bg-amber-50 text-amber-800 ring-amber-200',
-    dot: 'bg-amber-500',
-    label: 'Borderline',
-  },
-  low: {
-    ring: 'bg-red-50 text-red-800 ring-red-200',
-    dot: 'bg-red-500',
-    label: 'Insufficient power',
-  },
-  unset: {
-    ring: 'bg-neutral-100 text-neutral-600 ring-neutral-200',
-    dot: 'bg-neutral-400',
-    label: '',
-  },
+// Same thresholds as analyzeSample: low < 25, borderline < 50, good from 50.
+function obsBands(value: number): GaugeBand[] {
+  return [
+    { to: 25, tone: 'risk' },
+    { to: 50, tone: 'caution' },
+    { to: Math.max(100, Math.ceil(value / 50) * 50), tone: 'ok' },
+  ]
+}
+
+const STATUS: Record<Exclude<SampleStatus, 'unset'>, { tone: TagTone; label: string }> = {
+  good: { tone: 'ok', label: 'Sufficient power' },
+  borderline: { tone: 'caution', label: 'Borderline' },
+  low: { tone: 'risk', label: 'Insufficient power' },
 }
 
 function SampleStatusBadge({ status }: { status: SampleStatus }) {
-  const s = STATUS_STYLES[status]
+  if (status === 'unset') return null
+  const s = STATUS[status]
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full ring-1 ${s.ring}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+    <Tag tone={s.tone}>
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
       {s.label}
-    </span>
+    </Tag>
   )
 }
-
-function MethodChip({
-  active,
-  onClick,
-  title,
-  subtitle,
-}: {
-  active: boolean
-  onClick: () => void
-  title: string
-  subtitle: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 text-left px-3 py-2 rounded-lg ring-1 transition ${
-        active
-          ? 'bg-neutral-900 text-white ring-neutral-900'
-          : 'bg-white text-neutral-700 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50'
-      }`}
-    >
-      <div className="text-sm font-medium">{title}</div>
-      <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-neutral-500'}`}>
-        {subtitle}
-      </div>
-    </button>
-  )
-}
-

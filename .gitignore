@@ -35,3 +35,7 @@ next-env.d.ts
 .idea/
 .vscode/
 Thumbs.db
+
+# Claude Code local settings and worktrees
+.claude/settings.local.json
+.claude/worktrees/

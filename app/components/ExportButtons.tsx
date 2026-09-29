@@ -1,113 +1,199 @@
 'use client'
 
+import { Fragment, forwardRef, useState, type ButtonHTMLAttributes } from 'react'
 import type { Project } from '@/lib/schema'
 import { exportTxt, exportQsf } from '@/lib/qualtricsExport'
 import { exportSawtoothCsv } from '@/lib/sawtoothExport'
-import { buildWiringGuide, hasPivotedAttributes } from '@/lib/wiringGuide'
-import { Download } from './Icons'
+import { buildSurveyLss } from '@/lib/limesurveyExport'
+import { buildWiringGuide, hasPivotedAttributes, pivotedAttributes, tokenFor } from '@/lib/wiringGuide'
+import { joinNames, listSeparator } from '@/lib/text'
+import { Button, cx } from './ui'
+import { useLatestProject } from './ProjectStore'
+import { ChevronDown, Download, Upload } from './Icons'
+import { PlatformCard, Path } from './export/PlatformCard'
+import { downloadBlob } from './export/download'
 
-function downloadBlob(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+type CardKey = 'qualtrics' | 'limesurvey' | 'sawtooth' | 'wiring'
 
-export default function ExportButtons({ project }: { project: Project }) {
+export default function ExportButtons({
+  project,
+  pushOpen,
+  onTogglePush,
+  pushPanelId,
+  pushToggleId,
+  noDesignId,
+}: {
+  project: Project
+  pushOpen: boolean
+  onTogglePush: () => void
+  pushPanelId: string
+  pushToggleId: string
+  /** Id of the visible "no design" notice, referenced by the disabled buttons. */
+  noDesignId?: string
+}) {
   const hasDesign = !!project.design && project.design.rows.length > 0
   const showWiringGuide = hasPivotedAttributes(project)
+  const [errors, setErrors] = useState<Partial<Record<CardKey, string>>>({})
+  const describedBy = hasDesign ? undefined : noDesignId
+  const getProject = useLatestProject()
+
+  // Files are built from the latest project at click time, not from this view's deferred copy.
+  const run = (card: CardKey, build: (latest: Project) => void) => {
+    try {
+      build(getProject())
+      setErrors((e) => ({ ...e, [card]: undefined }))
+    } catch (err) {
+      setErrors((e) => ({ ...e, [card]: `Couldn’t build the file: ${(err as Error).message}` }))
+    }
+  }
+
+  const pivoted = showWiringGuide ? pivotedAttributes(project) : []
 
   return (
-    <div className="rounded-xl bg-white ring-1 ring-neutral-200/60 shadow-sm p-5">
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={() =>
-            downloadBlob(exportTxt(project), `${project.slug}.txt`, 'text/plain')
-          }
+    <div className={cx('grid gap-3 sm:grid-cols-2', showWiringGuide ? 'xl:grid-cols-4' : 'lg:grid-cols-3')}>
+      <PlatformCard
+        name="Qualtrics"
+        tag="2 formats"
+        description="Advanced Format TXT for the survey import, or a QSF survey with one block per design block."
+        howTo={
+          <>
+            Import: <Path>Library → Survey Templates → New → Import</Path>.
+          </>
+        }
+        error={errors.qualtrics}
+      >
+        <DownloadButton
+          format="TXT"
+          label="Advanced Format"
+          title="Advanced Format TXT for the Qualtrics survey import"
           disabled={!hasDesign}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          <Download size={14} />
-          Export TXT
-          <span className="text-[11px] text-white/60 font-normal">Advanced Format</span>
-        </button>
-        <button
+          aria-describedby={describedBy}
           onClick={() =>
-            downloadBlob(exportQsf(project), `${project.slug}.qsf`, 'application/json')
+            run('qualtrics', (p) => downloadBlob(exportTxt(p), `${p.slug}.txt`, 'text/plain'))
           }
+        />
+        <DownloadButton
+          format="QSF"
+          label="Qualtrics native"
+          title="Qualtrics native QSF survey, one block per design block"
           disabled={!hasDesign}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Download size={14} />
-          Export QSF
-          <span className="text-[11px] text-neutral-500 font-normal">Qualtrics native</span>
-        </button>
-        <button
+          aria-describedby={describedBy}
           onClick={() =>
-            downloadBlob(
-              exportSawtoothCsv(project),
-              `${project.slug}-sawtooth.csv`,
-              'text/csv',
+            run('qualtrics', (p) => downloadBlob(exportQsf(p), `${p.slug}.qsf`, 'application/json'))
+          }
+        />
+      </PlatformCard>
+
+      <PlatformCard
+        name="LimeSurvey"
+        tag="API beta"
+        description="A complete LSS survey file, or push the choice tasks straight to your LimeSurvey server through RemoteControl 2."
+        howTo={
+          <>
+            Import: <Path>Survey settings → Import</Path>.
+          </>
+        }
+        error={errors.limesurvey}
+      >
+        <DownloadButton
+          format="LSS"
+          label="Survey file"
+          title="LimeSurvey LSS survey file"
+          disabled={!hasDesign}
+          aria-describedby={describedBy}
+          onClick={() =>
+            run('limesurvey', (p) =>
+              downloadBlob(buildSurveyLss(p), `${p.slug}.lss`, 'application/xml'),
             )
           }
-          disabled={!hasDesign}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium ring-1 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          title="CSV for Sawtooth Lighthouse Studio &rarr; CBC &rarr; Import Design"
+        />
+        <Button
+          id={pushToggleId}
+          size="sm"
+          icon={<Upload />}
+          aria-expanded={pushOpen}
+          aria-controls={pushPanelId}
+          onClick={onTogglePush}
+          className={cx(pushOpen && 'shadow-pressed')}
         >
-          <Download size={14} />
-          Export CSV
-          <span className="text-[11px] text-neutral-500 font-normal">Sawtooth Lighthouse</span>
-        </button>
-        {showWiringGuide && (
-          <button
+          Push via API
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={cx('transition-transform motion-reduce:transition-none', pushOpen && 'rotate-180')}
+          />
+        </Button>
+      </PlatformCard>
+
+      <PlatformCard
+        name="Sawtooth"
+        tag="Beta"
+        description="Design CSV for Sawtooth Lighthouse Studio’s CBC exercise. Opt-out alternatives are left out; Lighthouse adds “None” through an exercise setting."
+        howTo={
+          <>
+            Import: <Path>CBC exercise → Design tab → Import Design</Path>. Configure attributes and
+            levels in Lighthouse first; level codes are 1-indexed positions.
+          </>
+        }
+        error={errors.sawtooth}
+      >
+        <DownloadButton
+          format="CSV"
+          label="Sawtooth Lighthouse"
+          title="CSV for Sawtooth Lighthouse Studio → CBC → Import Design"
+          disabled={!hasDesign}
+          aria-describedby={describedBy}
+          onClick={() =>
+            run('sawtooth', (p) =>
+              downloadBlob(exportSawtoothCsv(p), `${p.slug}-sawtooth.csv`, 'text/csv'),
+            )
+          }
+        />
+      </PlatformCard>
+
+      {showWiringGuide && (
+        <PlatformCard
+          name="Pivot wiring guide"
+          description={
+            <>
+              This design has pivoted attributes. The guide shows how to pipe{' '}
+              {pivoted.map((a, i) => (
+                <Fragment key={a.id}>
+                  {listSeparator(i, pivoted.length)}
+                  <code className="rounded-bar bg-surface-3 px-1 font-mono text-12 text-ink-2">{tokenFor(a)}</code>
+                </Fragment>
+              ))}{' '}
+              into Qualtrics or LimeSurvey so {joinNames(pivoted.map((a) => a.name.trim() || 'the attribute'))}{' '}
+              {pivoted.length === 1 ? 'pivots' : 'pivot'} on each respondent’s own value.
+            </>
+          }
+          error={errors.wiring}
+        >
+          <DownloadButton
+            format="Markdown"
+            label="Wiring guide"
+            title="Markdown guide explaining how to wire pivoted attributes into Qualtrics or LimeSurvey"
             onClick={() =>
-              downloadBlob(
-                buildWiringGuide(project),
-                `${project.slug}-wiring-guide.md`,
-                'text/markdown',
+              run('wiring', (p) =>
+                downloadBlob(buildWiringGuide(p), `${p.slug}-wiring-guide.md`, 'text/markdown'),
               )
             }
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium ring-1 ring-indigo-200 hover:ring-indigo-300 hover:bg-indigo-50/40 transition"
-            title="Markdown guide explaining how to wire pivoted attributes into Qualtrics or LimeSurvey"
-          >
-            <Download size={14} />
-            Pivot wiring guide
-            <span className="text-[11px] text-neutral-500 font-normal">Markdown</span>
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-neutral-500 mt-3 leading-relaxed">
-        {hasDesign ? (
-          <>
-            Files generate from your current state. Qualtrics:{' '}
-            <span className="font-medium text-neutral-700">
-              Library → Survey Templates → New → Import
-            </span>
-            . Sawtooth Lighthouse:{' '}
-            <span className="font-medium text-neutral-700">
-              CBC exercise → Design tab → Import Design
-            </span>{' '}
-            (configure attributes/levels in Lighthouse first; level codes are
-            1-indexed positions).
-            {showWiringGuide && (
-              <>
-                {' '}
-                <span className="text-neutral-700">
-                  This design has pivoted attributes — download the wiring guide for
-                  per-platform substitution steps.
-                </span>
-              </>
-            )}
-          </>
-        ) : (
-          'Upload a design CSV to enable export. (Editor-only changes do not produce choice tasks.)'
-        )}
-      </p>
+          />
+        </PlatformCard>
+      )}
     </div>
   )
 }
+
+const DownloadButton = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & { format: string; label: string }
+>(function DownloadButton({ format, label, title, ...rest }, ref) {
+  return (
+    <Button ref={ref} size="sm" icon={<Download />} title={title ?? `${label} (${format})`} {...rest}>
+      <span className="sr-only">Download </span>
+      {format}
+      <span className="sr-only">, {label}</span>
+    </Button>
+  )
+})

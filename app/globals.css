@@ -2,38 +2,199 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  background: #fafafa;
-  color: #0a0a0a;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Tokens hold RGB channels so Tailwind opacity modifiers work: rgb(var(--ink) / 0.5). */
+@layer base {
+  :root {
+    color-scheme: light;
+    --paper: 243 243 239;
+    --surface: 255 255 255;
+    --surface-2: 249 249 246;
+    --surface-3: 237 237 231;
+    --ink: 20 22 26;
+    --ink-2: 68 71 79;
+    --ink-3: 98 101 110;
+    --ink-4: 156 158 165;
+    --line: 227 227 220;
+    --line-2: 207 207 198;
+    --accent: 211 241 91;
+    --accent-edge: 175 207 47;
+    --accent-ink: 20 22 26;
+    --alt-1: 47 95 208;
+    --alt-2: 224 89 42;
+    --alt-3: 18 146 106;
+    --alt-4: 168 50 126;
+    --alt-5: 183 133 15;
+    --alt-6: 42 139 174;
+    --alt-x: 138 140 147;
+    --risk: 179 40 30;
+    --risk-bg: 252 235 232;
+    --caution: 138 90 0;
+    --caution-bg: 251 242 222;
+    --ok: 26 119 67;
+    --ok-bg: 229 242 233;
+    --e-raised: 0 1px 2px rgb(var(--ink) / 0.05), 0 14px 36px -18px rgb(var(--ink) / 0.28);
+    --alt: var(--ink-3);
+    --hatch: rgb(var(--ink-4) / 0.36);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+      --paper: 14 15 17;
+      --surface: 22 23 26;
+      --surface-2: 27 28 32;
+      --surface-3: 37 39 44;
+      --ink: 241 241 236;
+      --ink-2: 201 202 196;
+      --ink-3: 162 164 168;
+      --ink-4: 98 101 107;
+      --line: 42 44 49;
+      --line-2: 58 60 66;
+      --alt-1: 90 130 234;
+      --alt-2: 224 101 58;
+      --alt-3: 25 156 114;
+      --alt-4: 196 90 176;
+      --alt-5: 201 154 42;
+      --alt-6: 60 159 194;
+      --risk: 242 133 122;
+      --risk-bg: 48 36 38;
+      --caution: 230 176 79;
+      --caution-bg: 47 41 32;
+      --ok: 92 201 138;
+      --ok-bg: 30 44 40;
+      --e-raised: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 36px -18px rgb(0 0 0 / 0.7);
+    }
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --paper: 14 15 17;
+    --surface: 22 23 26;
+    --surface-2: 27 28 32;
+    --surface-3: 37 39 44;
+    --ink: 241 241 236;
+    --ink-2: 201 202 196;
+    --ink-3: 162 164 168;
+    --ink-4: 98 101 107;
+    --line: 42 44 49;
+    --line-2: 58 60 66;
+    --alt-1: 90 130 234;
+    --alt-2: 224 101 58;
+    --alt-3: 25 156 114;
+    --alt-4: 196 90 176;
+    --alt-5: 201 154 42;
+    --alt-6: 60 159 194;
+    --risk: 242 133 122;
+    --risk-bg: 48 36 38;
+    --caution: 230 176 79;
+    --caution-bg: 47 41 32;
+    --ok: 92 201 138;
+    --ok-bg: 30 44 40;
+    --e-raised: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 36px -18px rgb(0 0 0 / 0.7);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-paper font-sans text-14 text-ink;
+    font-feature-settings: 'kern', 'liga';
+  }
+
+  ::selection {
+    background: rgb(var(--accent));
+    color: rgb(var(--accent-ink));
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--ink) / 0.14);
+    border-radius: 999px;
+    border: 2px solid rgb(var(--paper));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--ink) / 0.26);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-color: rgb(var(--ink) / 0.2) transparent;
+    }
+  }
 }
 
-::selection {
-  background: #0a0a0a;
-  color: white;
+@layer components {
+  .focus-ring:focus-visible {
+    outline: 2px solid rgb(var(--ink));
+    outline-offset: 2px;
+  }
+  .focus-ring:focus:not(:focus-visible) {
+    outline: none;
+  }
 }
 
-/* Soft scrollbar that matches the page */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgb(0 0 0 / 0.1);
-  border-radius: 999px;
-  border: 2px solid #fafafa;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgb(0 0 0 / 0.2);
-}
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
 
-/* Subtle dotted background for empty drop zones */
-.bg-dot-grid {
-  background-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.06) 1px, transparent 0);
-  background-size: 14px 14px;
+  /* "Does not apply" / dominated cells. */
+  .hatch {
+    background-image: repeating-linear-gradient(135deg, var(--hatch) 0 1px, transparent 1px 6px);
+  }
+  .hatch-dense {
+    background-image: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 4px);
+  }
+
+  /* Subtle dotted background for empty drop zones */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle at 1px 1px, rgb(var(--ink) / 0.07) 1px, transparent 0);
+    background-size: 14px 14px;
+  }
+
+  /* Alternative-scoped colour: set style={{ '--alt': 'var(--alt-2)' }} on the element or an ancestor. */
+  /* Glyphs, rules and large bold numerals only (several alt colours are under 4.5:1); body text stays text-ink beside an AltGlyph. */
+  .text-alt {
+    color: rgb(var(--alt));
+  }
+  .bg-alt {
+    background-color: rgb(var(--alt));
+  }
+  .border-alt {
+    border-color: rgb(var(--alt));
+  }
+  .fill-alt {
+    fill: rgb(var(--alt));
+  }
+  .stroke-alt {
+    stroke: rgb(var(--alt));
+  }
+  .bg-alt-tint-8 {
+    background-color: rgb(var(--alt) / 0.08);
+    background-color: color-mix(in oklab, rgb(var(--alt)) 8%, rgb(var(--surface)));
+  }
+  .bg-alt-tint-14 {
+    background-color: rgb(var(--alt) / 0.14);
+    background-color: color-mix(in oklab, rgb(var(--alt)) 14%, rgb(var(--surface)));
+  }
+  .bg-alt-tint-22 {
+    background-color: rgb(var(--alt) / 0.22);
+    background-color: color-mix(in oklab, rgb(var(--alt)) 22%, rgb(var(--surface)));
+  }
+  .bg-alt-tint-34 {
+    background-color: rgb(var(--alt) / 0.34);
+    background-color: color-mix(in oklab, rgb(var(--alt)) 34%, rgb(var(--surface)));
+  }
+  .bg-alt-tint-50 {
+    background-color: rgb(var(--alt) / 0.5);
+    background-color: color-mix(in oklab, rgb(var(--alt)) 50%, rgb(var(--surface)));
+  }
 }

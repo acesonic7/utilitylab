@@ -1,110 +1,132 @@
 'use client'
 
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Project } from '@/lib/schema'
-import Field, { inputCls } from './Field'
+import { Button, Field, Input, Panel, Textarea } from '../ui'
+import { RequiredMark } from './structure/RequiredMark'
 
+// Study details: name, slug, description and the choice row label. The experiment type
+// (Labeled / Unlabeled) sits beside the alternatives, where its effect is shown.
 export default function ProjectInfoEditor({
   project,
   setProject,
+  id,
+  autoFocus,
+  onClose,
 }: {
   project: Project
   setProject: (p: Project) => void
+  id?: string
+  /** Move focus to the Name field when mounted. */
+  autoFocus?: boolean
+  onClose?: () => void
 }) {
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (autoFocus) nameRef.current?.focus()
+  }, [autoFocus])
+
   const stamp = (changes: Partial<Project>) =>
     setProject({ ...project, ...changes, updatedAt: new Date().toISOString() })
 
-  return (
-    <div className="rounded-xl bg-white ring-1 ring-neutral-200/60 shadow-sm p-5 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Name" required>
-          <input
-            type="text"
-            value={project.name}
-            placeholder="e.g. Urban Commute Mode Choice"
-            onChange={(e) => stamp({ name: e.target.value })}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Slug" hint="Used in exported file names.">
-          <input
-            type="text"
-            value={project.slug}
-            placeholder="auto-generated-from-name"
-            onChange={(e) => stamp({ slug: e.target.value })}
-            className={`${inputCls} font-mono text-neutral-700`}
-          />
-        </Field>
-      </div>
-      <Field label="Description">
-        <textarea
-          value={project.description ?? ''}
-          placeholder="What is this experiment about? (optional)"
-          onChange={(e) => stamp({ description: e.target.value })}
-          rows={2}
-          className={inputCls}
-        />
-      </Field>
-      <Field label="Experiment type" required>
-        <div className="flex gap-2">
-          <TypeChip
-            active={project.experimentType === 'unlabeled'}
-            onClick={() => stamp({ experimentType: 'unlabeled' })}
-          >
-            Generic
-            <span className="text-[10px] text-neutral-500 ml-1.5">Option A / B / …</span>
-          </TypeChip>
-          <TypeChip
-            active={project.experimentType === 'labeled'}
-            onClick={() => stamp({ experimentType: 'labeled' })}
-          >
-            Labeled
-            <span className="text-[10px] text-neutral-500 ml-1.5">Car, Bus, …</span>
-          </TypeChip>
-        </div>
-      </Field>
-      <Field
-        label="Choice column label"
-        hint='Header for the "pick one" row in the preview. Useful for non-English surveys (e.g. "Επιλογή"). Qualtrics and LimeSurvey render their own radio UI, so this label only changes what you see here.'
-      >
-        <input
-          type="text"
-          value={project.builder.labels?.choiceColumn ?? ''}
-          placeholder="Choice"
-          onChange={(e) =>
-            stamp({
-              builder: {
-                ...project.builder,
-                labels: { ...project.builder.labels, choiceColumn: e.target.value },
-              },
-            })
-          }
-          className={inputCls}
-        />
-      </Field>
-    </div>
-  )
-}
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && onClose) {
+      e.stopPropagation()
+      onClose()
+    }
+  }
 
-function TypeChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition ring-1 ${
-        active
-          ? 'bg-neutral-900 text-white ring-neutral-900'
-          : 'bg-white text-neutral-700 ring-neutral-200 hover:ring-neutral-300 hover:bg-neutral-50'
-      }`}
-    >
-      {children}
-    </button>
+    <div id={id} onKeyDown={onKeyDown}>
+      <Panel
+        title="Study details"
+        actions={
+          onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Close
+            </Button>
+          )
+        }
+      >
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3.5 md:grid-cols-2">
+          <Field
+            label={
+              <>
+                Name
+                <RequiredMark />
+              </>
+            }
+          >
+            {(fid, describedBy) => (
+              <Input
+                ref={nameRef}
+                id={fid}
+                aria-describedby={describedBy}
+                aria-required="true"
+                value={project.name}
+                placeholder="e.g. Urban Commute Mode Choice"
+                onChange={(e) => stamp({ name: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field label="Slug" hint="Used in exported file names.">
+            {(fid, describedBy) => (
+              <Input
+                id={fid}
+                aria-describedby={describedBy}
+                mono
+                spellCheck={false}
+                value={project.slug}
+                placeholder="auto-generated-from-name"
+                onChange={(e) => stamp({ slug: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field label="Description" optional className="md:col-span-2">
+            {(fid, describedBy) => (
+              <Textarea
+                id={fid}
+                aria-describedby={describedBy}
+                rows={2}
+                value={project.description ?? ''}
+                placeholder="What is this stated choice experiment about?"
+                onChange={(e) => stamp({ description: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field
+            label="Choice row label"
+            optional
+            className="md:col-span-2"
+            hint={
+              <>
+                Heads the “pick one” row in the preview, useful for surveys in other languages (e.g.
+                “Επιλογή”). Qualtrics and LimeSurvey draw their own radio buttons, so this only
+                changes the preview here.
+              </>
+            }
+          >
+            {(fid, describedBy) => (
+              <Input
+                id={fid}
+                aria-describedby={describedBy}
+                value={project.builder.labels?.choiceColumn ?? ''}
+                placeholder="Choice"
+                onChange={(e) =>
+                  stamp({
+                    builder: {
+                      ...project.builder,
+                      labels: { ...project.builder.labels, choiceColumn: e.target.value },
+                    },
+                  })
+                }
+                className="md:max-w-[calc(50%-0.5rem)]"
+              />
+            )}
+          </Field>
+        </div>
+      </Panel>
+    </div>
   )
 }
