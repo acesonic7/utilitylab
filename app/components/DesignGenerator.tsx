@@ -305,7 +305,7 @@ export default function DesignGenerator({
           <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
             <Field
               label="Multistarts"
-              hint="Independent random starts. Each runs a Federov local search to convergence; the best result wins."
+              hint="Independent random starts. Each runs a coordinate-exchange search to convergence; the best result wins."
             >
               {(id, describedBy) => (
                 <NumberInput
@@ -420,8 +420,8 @@ function ResultSummary({ run }: { run: LastRun }) {
         {method === 'd-optimal' && (
           <span className="text-ink-3">
             {' '}
-            ({multistarts} multistart{multistarts !== 1 ? 's' : ''}, {result.iterationsRun} Federov passes
-            total)
+            ({multistarts} multistart{multistarts !== 1 ? 's' : ''}, {result.iterationsRun} coordinate-exchange
+            passes total)
           </span>
         )}
         {result.constraintFailures !== undefined && result.constraintFailures > 0 && (

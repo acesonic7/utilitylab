@@ -39,6 +39,11 @@ export function MethodsPanel({ project }: { project: Project }) {
             ),
           )}
         </p>
+        {paragraph.references.map((reference) => (
+          <p key={reference} className="mt-2.5 max-w-[70ch] break-words text-12 leading-[18px] text-ink-3">
+            <span className="font-medium text-ink-2">Reference:</span> {reference}
+          </p>
+        ))}
         {!paragraph.hasDesign && (
           <p className="mt-2.5 text-12 text-ink-3">
             Add a design in 02 Design to complete the paragraph with the choice tasks, blocks, D-error

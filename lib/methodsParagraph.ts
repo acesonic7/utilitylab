@@ -21,7 +21,12 @@ export type MethodsParagraph = {
   segments: MethodsSegment[]
   text: string
   hasDesign: boolean
+  /** Full references for the works the text cites, for the paper's reference list. */
+  references: string[]
 }
+
+export const COORDINATE_EXCHANGE_REFERENCE =
+  'Meyer, R. K., & Nachtsheim, C. J. (1995). The coordinate-exchange algorithm for constructing exact optimal experimental designs. Technometrics, 37(1), 60–69. https://doi.org/10.1080/00401706.1995.10485889'
 
 const WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six',
@@ -110,14 +115,14 @@ function pivotSentence(attr: Attribute, name: string): string | null {
   return `${head}, with levels as offsets (${joinNames(values.map(signed))}${unit}). `
 }
 
-function generationPhrase(project: Project): string {
+function generationPhrase(project: Project): { text: string; references: string[] } {
   const params = project.design?.generationParams
-  if (!params) return 'It was generated in UtilityLab. '
+  if (!params) return { text: 'It was generated in UtilityLab. ', references: [] }
   const seed = params.seed !== undefined && Number.isFinite(params.seed) ? params.seed : undefined
   const details: string[] = []
   let how: string
   if (params.method === 'd-optimal') {
-    how = 'with a modified Fedorov D-optimal search'
+    how = 'with a coordinate-exchange D-optimal search (Meyer & Nachtsheim, 1995)'
     if (params.multistarts) details.push(`${num(params.multistarts)} random ${s(params.multistarts, 'start')}`)
   } else if (params.method === 'balanced') {
     how = params.iterations
@@ -127,11 +132,22 @@ function generationPhrase(project: Project): string {
     how = 'by drawing attribute levels at random'
   }
   if (seed !== undefined) details.push(`random seed ${seed}`)
-  return `It was generated in UtilityLab ${how}${details.length ? ` (${details.join(', ')})` : ''}. `
+  // The citation already takes the brackets, so the search settings follow in prose.
+  if (params.method === 'd-optimal') {
+    return {
+      text: `It was generated in UtilityLab ${how}${details.length ? `, using ${joinNames(details)}` : ''}. `,
+      references: [COORDINATE_EXCHANGE_REFERENCE],
+    }
+  }
+  return {
+    text: `It was generated in UtilityLab ${how}${details.length ? ` (${details.join(', ')})` : ''}. `,
+    references: [],
+  }
 }
 
 export function buildMethodsParagraph(project: Project, health: MethodsHealth): MethodsParagraph {
   const w = new Writer()
+  let references: string[] = []
   const alts = project.alternatives
   const names = new Map(alts.map((a, i) => [a.id, altName(a, i)]))
   const designed = alts.filter((a) => !a.isOptOut)
@@ -189,7 +205,11 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
     if (shape.blocks === 1) w.t(`, so each respondent completed all ${num(shape.tasks)}. `)
     else if (min === max) w.t(`, so each respondent completed ${num(min)} ${s(min, 'choice task')}. `)
     else w.t(`, so each respondent completed between ${num(min)} and ${num(max)} choice tasks. `)
-    if (source === 'generated') w.t(generationPhrase(project))
+    if (source === 'generated') {
+      const generation = generationPhrase(project)
+      w.t(generation.text)
+      references = generation.references
+    }
 
     // D-error
     if (health.K > 0) {
@@ -267,5 +287,5 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
   const segments = w.segments
   const last = segments[segments.length - 1]
   if (last && !last.mark) last.text = last.text.trimEnd()
-  return { segments, text: segments.map((seg) => seg.text).join(''), hasDesign: shape !== null }
+  return { segments, text: segments.map((seg) => seg.text).join(''), hasDesign: shape !== null, references }
 }
