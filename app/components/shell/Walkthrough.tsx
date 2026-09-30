@@ -8,22 +8,6 @@ import { useWorkspaceActions, type SectionId } from '../Workspace'
 import { useLibrary } from '../library/LibraryContext'
 import { ChevronLeft, ChevronRight, XMark } from '../Icons'
 
-const SEEN_KEY = 'utilitylab:walkthrough'
-
-export function hasSeenWalkthrough(): boolean {
-  try {
-    return window.localStorage.getItem(SEEN_KEY) === 'seen'
-  } catch {
-    return false
-  }
-}
-
-function markSeen() {
-  try {
-    window.localStorage.setItem(SEEN_KEY, 'seen')
-  } catch {}
-}
-
 type Step = { kicker: string; title: string; body: ReactNode; section?: SectionId }
 
 function steps(project: Project): Step[] {
@@ -105,7 +89,6 @@ export function Walkthrough({
   }, [open])
 
   const finish = (section?: SectionId) => {
-    markSeen()
     onClose()
     if (section) goTo(section)
   }
@@ -114,10 +97,7 @@ export function Walkthrough({
     <dialog
       ref={ref}
       aria-labelledby="walkthrough-title"
-      onClose={() => {
-        markSeen()
-        onClose()
-      }}
+      onClose={onClose}
       className="w-[min(560px,calc(100vw-32px))] rounded-hero border border-line bg-surface p-0 text-ink shadow-raised backdrop:bg-ink/40 backdrop:backdrop-blur-[2px]"
     >
       <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-8">

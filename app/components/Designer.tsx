@@ -19,6 +19,7 @@ import {
   designHistory,
   duplicateStudy,
   exampleStudy,
+  hasStoredStudies,
   listStudies,
   loadLibrary,
   openStudy,
@@ -43,6 +44,7 @@ import { markSaveFailed, markSaved } from './shell/SavedIndicator'
 import { LibraryContext, type LibraryApi } from './library/LibraryContext'
 import { StudyLibrary } from './library/StudyLibrary'
 import { NewStudyDialog } from './library/NewStudyDialog'
+import { Landing } from './landing/Landing'
 import { SECTIONS, sectionClass } from './shell/sections'
 import type { SectionId } from './Workspace'
 import StructureSection from './sections/StructureSection'
@@ -78,6 +80,8 @@ export default function Designer() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
+  // The landing screen: 'first' on a first visit (with its entrance), 'return' when reopened from the logo.
+  const [landing, setLanding] = useState<'first' | 'return' | null>(null)
 
   const refreshStudies = useCallback(() => setStudies(listStudies()), [])
 
@@ -104,11 +108,13 @@ export default function Designer() {
     setProjectState(next)
     setHistory(designHistory(next.id))
     setStudies(listStudies())
+    setLanding(null)
   }, [])
 
   const getProject = useCallback(() => latest.current as Project, [])
 
-  const deferred = useDeferredValue(project)
+  // The first project shows at once; only later edits are deferred.
+  const deferred = useDeferredValue(project) ?? project
 
   // Fallback for a plain object from a deferred view, which may be built on an older project:
   // apply only the top-level fields its edit changed, so it can't undo a newer edit to other fields.
@@ -128,7 +134,9 @@ export default function Designer() {
     }
   }, [deferred, setProject])
 
+  // A first visit stays on the landing screen, and nothing is stored until a choice is made there.
   useEffect(() => {
+    if (!hasStoredStudies()) return setLanding('first')
     const lib = loadLibrary()
     setUnreadable(lib.unreadable)
     switchTo(lib.project)
@@ -148,9 +156,18 @@ export default function Designer() {
   }, [project])
 
   // The page is client-rendered, so the metadata title template never sees the project name.
-  const docTitle = project ? project.name || 'Untitled stated choice experiment' : null
+  // The landing screen and the workspace each open at the top, whatever the other was scrolled to.
   useEffect(() => {
-    if (docTitle !== null) document.title = `${docTitle} · UtilityLab`
+    window.scrollTo(0, 0)
+  }, [landing])
+
+  const docTitle = landing
+    ? 'UtilityLab'
+    : project
+      ? `${project.name || 'Untitled stated choice experiment'} · UtilityLab`
+      : null
+  useEffect(() => {
+    if (docTitle !== null) document.title = docTitle
   }, [docTitle])
 
   const create = useCallback(
@@ -177,6 +194,7 @@ export default function Designer() {
       history,
       saveError,
       openLibrary: () => setLibraryOpen(true),
+      goHome: () => setLanding('return'),
       startNew: () => {
         setLibraryOpen(false)
         setNewOpen(true)
@@ -236,12 +254,32 @@ export default function Designer() {
     [studies, unreadable, project?.id, history, saveError, create, switchTo, refreshStudies, setProject, getProject],
   )
 
-  if (!project || !deferred) return <ShellSkeleton />
+  // The example already in the library if there is one, otherwise a fresh copy. When the browser
+  // refuses to store it, the example still opens, unsaved, as it did before the landing screen.
+  const exploreExample = () => {
+    const existing = listStudies().find((m) => m.fromExample)
+    const stored = existing ? openStudy(existing.id) : null
+    if (stored) return switchTo(stored)
+    const fresh = exampleStudy()
+    if (create(fresh, { fromExample: true }) !== null) switchTo(fresh)
+  }
 
   return (
     <LibraryContext.Provider value={library}>
     <WorkspaceProvider>
       <LatestProjectProvider get={getProject}>
+        {landing ? (
+          <Landing
+            intro={landing === 'first'}
+            currentStudy={project ? project.name : null}
+            onContinue={() => setLanding(null)}
+            onExample={exploreExample}
+            onNew={library.startNew}
+            onOpenFile={library.importFile}
+          />
+        ) : !project || !deferred ? (
+          <ShellSkeleton />
+        ) : (
         <DesignHealthProvider project={deferred}>
           <ProgressProvider project={project}>
           <AppShell project={project} header={<ProjectHeader project={project} />}>
@@ -260,6 +298,7 @@ export default function Designer() {
           </AppShell>
           </ProgressProvider>
         </DesignHealthProvider>
+        )}
         <NewStudyDialog open={newOpen} onClose={() => setNewOpen(false)} />
       </LatestProjectProvider>
     </WorkspaceProvider>

@@ -25,11 +25,28 @@ function isTypingTarget(t: EventTarget | null): boolean {
   return t.isContentEditable || t.closest('input, textarea, select') !== null
 }
 
-export function BrandCell() {
-  return (
-    <div className="flex h-full shrink-0 items-center gap-2.5 pl-4 sm:pl-[18px] lg:w-[232px]">
+export function BrandCell({ onHome }: { onHome?: () => void }) {
+  const brand = (
+    <>
       <Logo size={28} />
       <Wordmark className="hidden sm:inline" />
+    </>
+  )
+  return (
+    <div className="flex h-full shrink-0 items-center pl-2.5 sm:pl-3 lg:w-[232px]">
+      {onHome ? (
+        <button
+          type="button"
+          onClick={onHome}
+          aria-label="UtilityLab, back to the start screen"
+          title="Back to the start screen"
+          className="focus-ring flex items-center gap-2.5 rounded-well px-1.5 py-1 hover:bg-surface-3"
+        >
+          {brand}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2.5 px-1.5 py-1">{brand}</div>
+      )}
     </div>
   )
 }
@@ -66,7 +83,7 @@ export default function TopBar({ project }: { project: Project }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center border-b border-line bg-paper/85 backdrop-blur-md backdrop-saturate-150">
-      <BrandCell />
+      <BrandCell onHome={lib.goHome} />
 
       <div className="flex h-full min-w-0 flex-1 items-center gap-3 pr-4 sm:pr-5">
         <span aria-hidden="true" className="ml-1 h-5 w-px shrink-0 rotate-[20deg] bg-line-2 lg:hidden" />
