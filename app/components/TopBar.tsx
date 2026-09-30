@@ -38,6 +38,7 @@ export default function TopBar({ project }: { project: Project }) {
   const { goTo } = useWorkspaceActions()
   const lib = useLibrary()
   const progress = useProgress()
+  const isExample = lib.studies.some((s) => s.id === lib.activeId && s.fromExample)
   const [mac, setMac] = useState(true)
   const ids = altIdentities(project)
 
@@ -87,9 +88,15 @@ export default function TopBar({ project }: { project: Project }) {
           <span className="truncate text-14 font-semibold text-ink">
             {project.name || 'Untitled stated choice experiment'}
           </span>
-          <Tag className="hidden md:inline-flex">
-            {project.experimentType === 'labeled' ? 'Labeled' : 'Unlabeled'}
-          </Tag>
+          {isExample ? (
+            <Tag tone="ink" className="hidden sm:inline-flex">
+              Example
+            </Tag>
+          ) : (
+            <Tag className="hidden md:inline-flex">
+              {project.experimentType === 'labeled' ? 'Labeled' : 'Unlabeled'}
+            </Tag>
+          )}
           <ChevronDown size={14} className="shrink-0 text-ink-3" />
           <span className="sr-only">, open studies</span>
         </button>
