@@ -92,6 +92,10 @@ The designer runs in the browser: design generation, diagnostics, previews and e
 
 There is one server route, `POST /api/limesurvey/push` ([app/api/limesurvey/push/route.ts](app/api/limesurvey/push/route.ts)), used only by **Push to LimeSurvey** (and its "Test connection" button). When you push, the browser sends the LimeSurvey URL, username, password, survey ID and the study to this route, which relays the username and password to the RemoteControl 2 endpoint of the LimeSurvey server you entered to open a session, creates the question groups and choice-task questions, and releases the session. The route exists so the browser does not have to call RemoteControl cross-origin (CORS). It keeps nothing: its code neither stores nor logs the credentials, and the password is never saved with the study (the URL, username and survey ID are remembered in the browser; the username is left out of project files). The credentials do pass through the server that hosts the app, so on a deployment you do not control, use the LSS file download instead, or host UtilityLab yourself.
 
+The push connects only to public LimeSurvey servers. The URL must start with `https://` (plain `http://` is also accepted when you host UtilityLab yourself, outside Vercel), must not contain a username or password, and must not be, or resolve to, a loopback, private-network or link-local address (`localhost`, `10.x`, `172.16–31.x`, `192.168.x`, `169.254.x` and their IPv6 counterparts). Redirects are not followed, so enter the address the server actually answers on. One push is limited to 500 choice tasks in 50 blocks and about 50 seconds; for a larger design, import the LSS file. The route answers only requests from the app's own pages, and its error messages are its own: text returned by the remote server is not passed back. The checks live in [lib/limesurveyTarget.ts](lib/limesurveyTarget.ts) and [lib/limesurveyRc2.ts](lib/limesurveyRc2.ts).
+
+If you host UtilityLab yourself and your LimeSurvey server is on the same machine or private network, set `LIMESURVEY_PUSH_ALLOW_PRIVATE=1` in the server's environment to lift the address restriction. Leave it unset on any deployment that strangers can reach.
+
 ## Local development
 
 ```bash
@@ -103,7 +107,7 @@ npm run dev
 ### Tests
 
 ```bash
-npm test           # unit tests (vitest) for the model, generators, exports, library and methods paragraph
+npm test           # unit tests (vitest) for the model, generators, exports, library, methods paragraph and LimeSurvey push checks
 ```
 
 ### Other scripts
