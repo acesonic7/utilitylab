@@ -17,7 +17,7 @@ repository-code: "https://github.com/acesonic7/utilitylab"
 url: "https://utilitylab-ten.vercel.app"
 license: Apache-2.0
 doi: 10.5281/zenodo.23054576
-version: 1.0.0
+version: 1.1.0
 date-released: "2026-09-30"
 keywords:
   - stated choice experiment
