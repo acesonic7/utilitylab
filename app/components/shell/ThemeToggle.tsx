@@ -1,60 +1,83 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Monitor, Moon, Sun } from '../Icons'
+import { Moon, Sun } from '../Icons'
 import { IconButton } from '../ui'
 
-type Theme = 'system' | 'light' | 'dark'
+type Mode = 'light' | 'dark'
 
-const KEY = 'utilitylab:theme'
-const ORDER: Theme[] = ['system', 'light', 'dark']
-const NAME: Record<Theme, string> = { system: 'System', light: 'Light', dark: 'Dark' }
-const ICON = { system: Monitor, light: Sun, dark: Moon }
+// Only a choice that differs from the system is stored; without one the page follows the system.
+const THEME_KEY = 'utilitylab:theme-override'
+const QUERY = '(prefers-color-scheme: dark)'
 
-function isTheme(v: unknown): v is Theme {
-  return v === 'system' || v === 'light' || v === 'dark'
+function isMode(v: unknown): v is Mode {
+  return v === 'light' || v === 'dark'
 }
 
-// The head script has already applied the stored theme, so the attribute is the source of truth.
-function currentTheme(): Theme {
-  if (typeof document === 'undefined') return 'system'
+function systemMode(): Mode {
+  return window.matchMedia?.(QUERY).matches ? 'dark' : 'light'
+}
+
+// The head script has already applied a stored override, so the attribute is the source of truth.
+function overrideMode(): Mode | null {
   const t = document.documentElement.getAttribute('data-theme')
-  return isTheme(t) ? t : 'system'
+  return isMode(t) ? t : null
 }
 
+function applyOverride(m: Mode | null) {
+  const root = document.documentElement
+  if (m) root.setAttribute('data-theme', m)
+  else root.removeAttribute('data-theme')
+}
+
+// Mounted only on the client (the shell skeleton renders before it), so it can read the page directly.
 export function ThemeToggle({ className }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>(currentTheme)
+  const [system, setSystem] = useState<Mode>(systemMode)
+  const [override, setOverride] = useState<Mode | null>(overrideMode)
 
   useEffect(() => {
+    const mq = window.matchMedia?.(QUERY)
+    const onSystem = () => setSystem(mq.matches ? 'dark' : 'light')
+    mq?.addEventListener('change', onSystem)
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== KEY) return
-      const t: Theme = isTheme(e.newValue) ? e.newValue : 'system'
-      document.documentElement.setAttribute('data-theme', t)
-      setTheme(t)
+      if (e.key !== THEME_KEY) return
+      const m = isMode(e.newValue) ? e.newValue : null
+      applyOverride(m)
+      setOverride(m)
     }
     window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+    return () => {
+      mq?.removeEventListener('change', onSystem)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [])
 
-  const next = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length]
-  const Icon = ICON[theme]
+  const mode = override ?? system
+  const target: Mode = mode === 'dark' ? 'light' : 'dark'
 
-  const apply = (t: Theme) => {
-    setTheme(t)
-    document.documentElement.setAttribute('data-theme', t)
+  const toggle = () => {
+    // Read the system afresh in case a change event was missed.
+    const sys = systemMode()
+    setSystem(sys)
+    const to: Mode = (override ?? sys) === 'dark' ? 'light' : 'dark'
+    // Switching back to the system's mode drops the override, so the page follows the system again.
+    const next = to === sys ? null : to
+    applyOverride(next)
+    setOverride(next)
     try {
-      window.localStorage.setItem(KEY, t)
+      if (next) window.localStorage.setItem(THEME_KEY, next)
+      else window.localStorage.removeItem(THEME_KEY)
     } catch {
       // not persisted, still applied for this visit
     }
   }
 
+  const Icon = mode === 'dark' ? Moon : Sun
+  const now = `${mode === 'dark' ? 'Dark' : 'Light'} mode${override ? '' : ' (system)'}`
+  const then = target === system ? `${target}, following the system` : target
+
   return (
-    <IconButton
-      label={`Color theme: ${NAME[theme]}. Switch to ${NAME[next].toLowerCase()}.`}
-      onClick={() => apply(next)}
-      className={className}
-    >
+    <IconButton label={`${now}. Switch to ${then}.`} onClick={toggle} className={className}>
       <Icon />
     </IconButton>
   )

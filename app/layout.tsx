@@ -28,8 +28,9 @@ export const metadata: Metadata = {
   description: 'Stated choice experiment designer',
 }
 
-// Runs before paint so a stored theme never flashes the other one.
-const themeScript = `(function(){try{var t=localStorage.getItem('utilitylab:theme');if(t==='light'||t==='dark'||t==='system'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`
+// Runs before paint so a stored theme never flashes the other one. Without a stored override the
+// page follows the system. The old key held any past choice, so dropping it resets everyone to system once.
+const themeScript = `(function(){try{localStorage.removeItem('utilitylab:theme');var t=localStorage.getItem('utilitylab:theme-override');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
