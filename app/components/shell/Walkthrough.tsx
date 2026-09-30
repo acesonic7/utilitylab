@@ -34,8 +34,9 @@ function steps(project: Project): Step[] {
       body: (
         <>
           UtilityLab takes you from the alternatives and attributes of your study to choice tasks
-          you can field in Qualtrics, LimeSurvey or Sawtooth. This one-minute tour uses the example
-          study, <strong className="font-semibold text-ink">{project.name}</strong>.
+          you can field in Qualtrics, LimeSurvey or Sawtooth. You’re looking at an example study,{' '}
+          <strong className="font-semibold text-ink">{project.name}</strong>: a sandbox to play with
+          freely. This one-minute tour walks through it, and the last step starts your own.
         </>
       ),
     },
