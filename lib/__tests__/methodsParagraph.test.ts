@@ -4,7 +4,7 @@ import { travelModeExample } from '../example'
 import { buildPriorVector, computeDError, paramLayout } from '../dOptimal'
 import { generateDesign } from '../designGenerator'
 import { diagnosticsByTask } from '../diagnostics'
-import { buildMethodsParagraph } from '../methodsParagraph'
+import { buildMethodsParagraph, COORDINATE_EXCHANGE_REFERENCE } from '../methodsParagraph'
 import { validate } from '../validation'
 
 function generated(method: GenerationMethod): Project {
@@ -24,7 +24,7 @@ function generated(method: GenerationMethod): Project {
   }
 }
 
-function paragraph(project: Project): string {
+function paragraph(project: Project) {
   const report = validate(project)
   const layout = paramLayout(project)
   const priors = buildPriorVector(project, layout)
@@ -35,19 +35,28 @@ function paragraph(project: Project): string {
     dError: Number.isFinite(d) ? d : null,
     K: layout.totalK,
     priorsNonZero: priors.some((b) => b !== 0),
-  }).text
+  })
 }
 
 describe('methods paragraph', () => {
-  it('names the D-optimal search as coordinate exchange', () => {
-    const text = paragraph(generated('d-optimal'))
-    expect(text).toContain('It was generated in UtilityLab with a coordinate-exchange D-optimal search (2 random starts, random seed 42). ')
+  it('names the D-optimal search as coordinate exchange and cites it', () => {
+    const { text, references } = paragraph(generated('d-optimal'))
+    expect(text).toContain(
+      'It was generated in UtilityLab with a coordinate-exchange D-optimal search (Meyer & Nachtsheim, 1995), using 2 random starts and random seed 42. ',
+    )
     expect(text).not.toMatch(/fed[eo]rov/i)
+    expect(references).toEqual([COORDINATE_EXCHANGE_REFERENCE])
   })
 
-  it('does not name a search algorithm for the other methods', () => {
+  it('does not name or cite a search algorithm for the other methods', () => {
     for (const method of ['balanced', 'random'] as const) {
-      expect(paragraph(generated(method))).not.toMatch(/coordinate-exchange|fed[eo]rov/i)
+      const { text, references } = paragraph(generated(method))
+      expect(text).not.toMatch(/coordinate-exchange|Nachtsheim|fed[eo]rov/i)
+      expect(references).toEqual([])
     }
+  })
+
+  it('cites nothing for an uploaded design', () => {
+    expect(paragraph(travelModeExample).references).toEqual([])
   })
 })
