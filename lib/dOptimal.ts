@@ -214,7 +214,12 @@ export function computeDError(
   return Math.exp(-ld / K)
 }
 
-// ── modified Federov search ─────────────────────────────────────────────────
+// ── coordinate-exchange search ──────────────────────────────────────────────
+// Coordinate exchange (Meyer & Nachtsheim 1995, Technometrics 37(1), 60–69,
+// doi:10.1080/00401706.1995.10485889): one attribute level of one alternative in one
+// choice task changes at a time; every other level is tried and the one with the
+// lowest D-error is kept. No candidate set of whole profiles is built or exchanged,
+// so this is not a modified Fedorov algorithm (Cook & Nachtsheim 1980).
 
 export type DOptimalInput = {
   numTasks: number
@@ -299,7 +304,7 @@ function randomRows(
   return rows
 }
 
-function federovImprove(
+function coordinateExchange(
   project: Project,
   startRows: DesignRow[],
   layout: ParamLayout,
@@ -368,7 +373,7 @@ export function dOptimalSearch(project: Project, input: DOptimalInput): DOptimal
   let totalPasses = 0
   for (let m = 0; m < M; m++) {
     const start = randomRows(project, input.numTasks, input.numBlocks, input.rng)
-    const r = federovImprove(project, start, layout, beta, maxPasses, input.onStep)
+    const r = coordinateExchange(project, start, layout, beta, maxPasses, input.onStep)
     totalPasses += r.passes
     // Keep the first start even when nothing is identified, so a run never returns no rows.
     if (r.dError < bestD || bestRows === null) {

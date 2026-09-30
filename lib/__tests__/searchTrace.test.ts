@@ -53,6 +53,15 @@ describe('search trace', () => {
     expect(ds[ds.length - 1]).toBeLessThan(example)
   })
 
+  // Coordinate exchange: one attribute level of one alternative in one choice task per step.
+  it('changes exactly one cell at every accepted step', () => {
+    for (let i = 1; i < trace.frames.length; i++) {
+      const prev = trace.frames[i - 1].levels
+      const changed = trace.frames[i].levels.flatMap((row, t) => row.filter((l, c) => l !== prev[t][c]))
+      expect(changed).toHaveLength(1)
+    }
+  })
+
   it('ends on the design it returns', () => {
     expect(trace.rows).toHaveLength(6)
     expect(computeDError(travelModeExample, trace.rows)).toBeCloseTo(trace.frames[trace.frames.length - 1].dError, 10)

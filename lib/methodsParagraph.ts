@@ -117,7 +117,7 @@ function generationPhrase(project: Project): string {
   const details: string[] = []
   let how: string
   if (params.method === 'd-optimal') {
-    how = 'with a modified Fedorov D-optimal search'
+    how = 'with a coordinate-exchange D-optimal search'
     if (params.multistarts) details.push(`${num(params.multistarts)} random ${s(params.multistarts, 'start')}`)
   } else if (params.method === 'balanced') {
     how = params.iterations

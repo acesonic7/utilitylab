@@ -1,6 +1,24 @@
 # Pivot Designs — Spec Notes
 
-Status: deferred. This document captures the conversation so we can pick it up later without re-deciding.
+Status: static pivots and the wiring guide are implemented; automatic per-respondent piping in the exports, the reference alternative, categorical pivots and range clamping are still deferred. The sections from "What" onwards are the original spec notes, kept so the deferred parts can be picked up without re-deciding.
+
+## Current state
+
+### Implemented
+
+- **Per-attribute pivot mode** `none | absolute | relative` on numeric attributes (`AttributePivot` in `lib/schema.ts`; edited in 01 Structure). Levels of a pivoted attribute are offsets from (`absolute`) or multipliers of (`relative`) a reference value.
+- **Preview reference.** Each pivoted attribute carries a fixed `previewReference`. `resolvePivotValue` and `levelDisplayText` in `lib/format.ts` resolve every level against it (`reference + offset` or `reference × multiplier`) and append the change in brackets. The choice-task preview and the Qualtrics (TXT, QSF) and LimeSurvey (LSS, push) exports all render levels through this one function, so they show the same resolved values to every respondent. The Sawtooth CSV carries level positions and is unaffected.
+- **Wiring guide** (`lib/wiringGuide.ts`). A Markdown file, offered in 05 Export when the study has pivoted attributes with a preview reference, that lists each pivoted attribute's reference token (`referenceToken`, default `REF_<ATTRIBUTE_ID>`) and, per level, the Qualtrics piped-text or LimeSurvey Expression Manager expression to substitute for the preview value. The Qualtrics TXT export also opens with a setup-notes block pointing to it. The guide covers an attribute's default levels; per-alternative level overrides are not listed.
+- **Generators, D-error, diagnostics and constraints are unchanged.** They work on level IDs and on the level values as entered (the offsets or multipliers), not on resolved values.
+
+### Still deferred
+
+- **Automatic per-respondent piping in the exports.** The exported files contain the resolved preview values; replacing them with piped expressions is done by hand in the survey platform, following the wiring guide.
+- **Reference alternative.** No alternative can be marked as the reference (there is no `referenceAlternativeId`), so no alternative is shown at the respondent's unmodified values.
+- **Categorical pivots** (ordinal step moves). Only numeric attributes can pivot.
+- **Range clamping** of resolved values.
+
+The schema that shipped differs from the sketch below: `pivot` holds `mode`, `previewReference` and `referenceToken` (not `reference`).
 
 ## What
 
