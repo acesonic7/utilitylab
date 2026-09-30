@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use UtilityLab in your research, please cite it as below."
+type: software
+title: UtilityLab
+abstract: >-
+  UtilityLab is a browser-based tool for designing stated choice experiments.
+  It lets researchers define alternatives, attributes and levels, generate or
+  import an experimental design, check it with diagnostics, preview each
+  choice task as a respondent sees it, and export the choice tasks to survey
+  platforms such as Qualtrics and LimeSurvey.
+authors:
+  - family-names: Tsouros
+    given-names: Ioannis
+    affiliation: Moby X Software Ltd
+    orcid: "https://orcid.org/0000-0003-4022-0377"
+repository-code: "https://github.com/acesonic7/utilitylab"
+url: "https://utilitylab-ten.vercel.app"
+license: Apache-2.0
+version: 1.0.0
+date-released: "2026-09-30"
+keywords:
+  - stated choice experiment
+  - discrete choice experiment
+  - stated preference
+  - experimental design
+  - efficient design
+  - choice modelling
+  - survey design

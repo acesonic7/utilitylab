@@ -147,6 +147,12 @@ Beyond MVP:
 Aligned to the Wang, Thorhauge, Walker & Ben-Akiva tradition (MIT/Berkeley discrete-choice):
 **choice task** (single scenario), **alternative** (option in a task), **attribute** (variable describing alternatives), **level** (attribute value), **block** (subset of choice tasks shown to one respondent), **stated choice experiment** (the full instrument).
 
+## How to cite
+
+If you use UtilityLab in your research, please cite it. The citation metadata is in [CITATION.cff](CITATION.cff); GitHub's **Cite this repository** button turns it into APA or BibTeX. Each release is archived on Zenodo with its own DOI (see [docs/releasing.md](docs/releasing.md)).
+
 ## License
 
-MIT.
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Copyright 2026 Ioannis Tsouros.
