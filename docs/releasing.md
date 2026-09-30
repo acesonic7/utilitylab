@@ -22,14 +22,9 @@ Zenodo can only archive public repositories.
 3. Commit, merge to `main`, and create a **GitHub release** (not just a tag) named `vX.Y.Z`. Zenodo archives releases only.
 4. Within a few minutes the release appears on Zenodo with a version DOI.
 
-## After the first release
+## DOIs
 
-Zenodo also mints a **concept DOI** that always resolves to the latest version. Once it exists:
+Zenodo mints a **concept DOI** that always resolves to the latest version, plus one version DOI per release.
 
-1. Add it to `CITATION.cff`:
-
-   ```yaml
-   doi: 10.5281/zenodo.XXXXXXX
-   ```
-
-2. Add the Zenodo DOI badge to the top of the README.
+- Concept DOI: `10.5281/zenodo.23054576`. It is in `CITATION.cff` and the README badge, and never changes.
+- After each release, add the new version DOI to the list under "How to cite" in the README.

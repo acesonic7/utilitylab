@@ -1,5 +1,7 @@
 # UtilityLab
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23054576.svg)](https://doi.org/10.5281/zenodo.23054576)
+
 A web-based platform for designing, validating, and exporting stated-preference (SP) and discrete-choice experiments (DCEs) — connecting experimental design, survey deployment, and analysis-ready output in a single workflow.
 
 > Made by [Ioannis Tsouros](https://github.com/acesonic7) ([@acesonic7](https://github.com/acesonic7))
@@ -150,6 +152,11 @@ Aligned to the Wang, Thorhauge, Walker & Ben-Akiva tradition (MIT/Berkeley discr
 ## How to cite
 
 If you use UtilityLab in your research, please cite it. The citation metadata is in [CITATION.cff](CITATION.cff); GitHub's **Cite this repository** button turns it into APA or BibTeX. Each release is archived on Zenodo with its own DOI (see [docs/releasing.md](docs/releasing.md)).
+
+- All versions: [10.5281/zenodo.23054576](https://doi.org/10.5281/zenodo.23054576) (always resolves to the latest release)
+- v1.0.0: [10.5281/zenodo.23054577](https://doi.org/10.5281/zenodo.23054577)
+
+Cite the version DOI when you report results, so readers can reproduce the exact design engine you used.
 
 ## License
 
