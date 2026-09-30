@@ -8,6 +8,7 @@ import { useLatestProject, type SetProject } from './ProjectStore'
 import { Button, Field, Input, Panel, Tag, cx } from './ui'
 import { Check, Download, Upload, XMark } from './Icons'
 import { downloadBlob } from './export/download'
+import { useProgress } from './shell/Progress'
 
 type Status =
   | { kind: 'idle' }
@@ -33,6 +34,7 @@ export default function LimeSurveyPush({
   const [surveyId, setSurveyId] = useState<string>(ls.surveyId ? String(ls.surveyId) : '')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const getProject = useLatestProject()
+  const { markReviewed } = useProgress()
 
   const persist = () => {
     setProject((p) => ({
@@ -69,6 +71,7 @@ export default function LimeSurveyPush({
       })
       const body = await res.json()
       if (body.ok) {
+        if (!testOnly) markReviewed('export')
         setStatus({
           kind: 'ok',
           message: body.message ?? (testOnly ? 'Connection OK' : 'Push complete'),
@@ -86,6 +89,7 @@ export default function LimeSurveyPush({
     const latest = getProject()
     if (!latest.design) return
     downloadBlob(buildSurveyLss(latest), `${latest.slug}.lss`, 'application/xml')
+    markReviewed('export')
   }
 
   const missing = [

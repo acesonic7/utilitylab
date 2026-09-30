@@ -3,23 +3,6 @@ import type { SectionMarker } from './useSectionStatus'
 
 export function StatusMarker({ marker }: { marker: SectionMarker | null }) {
   if (!marker) return null
-  if (marker.kind === 'done') {
-    return (
-      <span className="inline-flex text-ok">
-        <svg
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-          className="size-3.5 fill-none stroke-current"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="m3.5 8.5 3 3 6-7" />
-        </svg>
-        <span className="sr-only">{marker.label}</span>
-      </span>
-    )
-  }
   // Pips as well as hue: three lit bars for concerns, two for warnings.
   return (
     <span

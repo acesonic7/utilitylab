@@ -5,6 +5,7 @@ import type { Project } from '@/lib/schema'
 import { useWorkspaceActions } from '../Workspace'
 import { Button, EmptyState, SectionHeader } from '../ui'
 import { ChoiceTaskViewer } from '../choice-tasks/ChoiceTaskViewer'
+import { NextStep } from '../shell/NextStep'
 
 export default function ChoiceTasksSection({
   project,
@@ -52,6 +53,7 @@ export default function ChoiceTasksSection({
       ) : (
         <ChoiceTaskViewer project={project} />
       )}
+      <NextStep after="choice-tasks" />
     </>
   )
 }

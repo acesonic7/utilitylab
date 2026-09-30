@@ -12,6 +12,7 @@ import { useLatestProject } from './ProjectStore'
 import { ChevronDown, Download, Upload } from './Icons'
 import { PlatformCard, Path } from './export/PlatformCard'
 import { downloadBlob } from './export/download'
+import { useProgress } from './shell/Progress'
 
 type CardKey = 'qualtrics' | 'limesurvey' | 'sawtooth' | 'wiring'
 
@@ -36,12 +37,14 @@ export default function ExportButtons({
   const [errors, setErrors] = useState<Partial<Record<CardKey, string>>>({})
   const describedBy = hasDesign ? undefined : noDesignId
   const getProject = useLatestProject()
+  const { markReviewed } = useProgress()
 
   // Files are built from the latest project at click time, not from this view's deferred copy.
   const run = (card: CardKey, build: (latest: Project) => void) => {
     try {
       build(getProject())
       setErrors((e) => ({ ...e, [card]: undefined }))
+      markReviewed('export')
     } catch (err) {
       setErrors((e) => ({ ...e, [card]: `Couldn’t build the file: ${(err as Error).message}` }))
     }

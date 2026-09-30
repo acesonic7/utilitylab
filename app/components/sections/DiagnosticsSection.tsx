@@ -7,6 +7,7 @@ import { Button, EmptyState, SectionHeader } from '../ui'
 import { DiagnosticsView } from '../diagnostics/DiagnosticsView'
 import { ThresholdsDisclosure } from '../diagnostics/ThresholdsDisclosure'
 import { verdict } from '../diagnostics/model'
+import { NextStep } from '../shell/NextStep'
 
 const STATIC_LEDE =
   'Checks for dominance, identical alternatives, attribute correlation, level balance and constraints. They re-run after every edit.'
@@ -43,6 +44,7 @@ export default function DiagnosticsSection({
           }
         />
       )}
+      <NextStep after="diagnostics" />
     </>
   )
 }

@@ -93,8 +93,8 @@ export function StudyLibrary({ open, onClose }: { open: boolean; onClose: () => 
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2 px-6 sm:px-8">
-        <Button icon={<Plus />} onClick={lib.newBlank}>
-          New blank study
+        <Button variant="primary" icon={<Plus />} onClick={lib.startNew}>
+          New study…
         </Button>
         <Button icon={<Plus />} onClick={lib.newFromExample}>
           New from example

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import type { Project } from '@/lib/schema'
 import type { SetProject } from '../ProjectStore'
 import { Button, EmptyState, SectionHeader } from '../ui'
@@ -8,6 +8,8 @@ import { Upload } from '../Icons'
 import DesignSource, { DESIGN_PANEL_IDS, type DesignSourceMode } from '../DesignSource'
 import { DesignMatrix } from '../design/DesignMatrix'
 import { DesignHistory } from '../design/DesignHistory'
+import { NextStep } from '../shell/NextStep'
+import { useDesignPanel, useWorkspaceActions } from '../Workspace'
 
 export default function DesignSection({
   project,
@@ -16,7 +18,9 @@ export default function DesignSection({
   project: Project
   setProject: SetProject
 }) {
-  const [open, setOpen] = useState<DesignSourceMode | null>(null)
+  // In the workspace, so the next-step bars and the top bar can open a panel from elsewhere.
+  const open = useDesignPanel()
+  const { setDesignPanel: setOpen } = useWorkspaceActions()
   const uploadBtn = useRef<HTMLButtonElement>(null)
   const generateBtn = useRef<HTMLButtonElement>(null)
 
@@ -24,7 +28,7 @@ export default function DesignSection({
   const hasRows = !!design && design.rows.length > 0
   const uploadLabel = design?.source === 'csv' ? 'Replace CSV' : 'Upload CSV'
 
-  const toggle = (mode: DesignSourceMode) => setOpen((cur) => (cur === mode ? null : mode))
+  const toggle = (mode: DesignSourceMode) => setOpen(open === mode ? null : mode)
 
   const close = () => {
     const was = open
@@ -105,6 +109,7 @@ export default function DesignSection({
       )}
 
       <DesignHistory project={project} />
+      <NextStep after="design" />
     </>
   )
 }

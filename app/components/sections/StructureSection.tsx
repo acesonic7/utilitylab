@@ -9,6 +9,7 @@ import AlternativesEditor from '../editors/AlternativesEditor'
 import AttributesEditor from '../editors/AttributesEditor'
 import ContextVariablesEditor from '../editors/ContextVariablesEditor'
 import ConstraintsEditor from '../editors/ConstraintsEditor'
+import { NextStep } from '../shell/NextStep'
 
 export default function StructureSection({
   project,
@@ -97,6 +98,7 @@ export default function StructureSection({
           <ConstraintsEditor project={project} setProject={setProject} />
         </div>
       </div>
+      <NextStep after="structure" />
     </>
   )
 }
