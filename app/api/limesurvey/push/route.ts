@@ -1,80 +1,59 @@
 import type { NextRequest } from 'next/server'
 import type { Project } from '@/lib/schema'
 import { blockRelevance, buildBlockAssignmentLsq, buildQuestionLsq } from '@/lib/limesurveyExport'
+import { openRc2, resolveTarget, type Rc2Client, type Rc2Failure, type Rc2Result } from '@/lib/limesurveyRc2'
+import { PRIVATE_NAME_MESSAGE, checkPushUrl, isSameOriginRequest } from '@/lib/limesurveyTarget'
 
-// LimeSurvey RemoteControl 2 (RC2) JSON-RPC client.
+// Pushes choice tasks to LimeSurvey through RemoteControl 2 (RC2).
 // Endpoint: {LS_URL}/index.php/admin/remotecontrol
-// Method calls are positional-arg arrays, not named params.
 //
 // This route runs server-side so:
 //  - we avoid CORS (the client never talks to LimeSurvey directly)
 //  - the user's password never leaves the request body
 //  - we can sequence multiple RPC calls without user-facing latency cost
+//
+// It makes requests to a URL the caller supplies and has no authentication, so
+// it is guarded against server-side request forgery: the URL and every address
+// it resolves to are checked (lib/limesurveyTarget.ts), connections are pinned
+// to the checked addresses and never follow redirects (lib/limesurveyRc2.ts),
+// sizes and time are capped, and upstream error text is not passed on.
 
 export const runtime = 'nodejs'
 export const maxDuration = 60 // seconds; Vercel-friendly
 
-type RpcResult = { ok: true; result: unknown } | { ok: false; error: string }
+const MAX_BODY_BYTES = 2 * 1024 * 1024
+const MAX_DESIGN_ROWS = 500
+const MAX_BLOCKS = 50
+const MAX_USERNAME_LENGTH = 256
+const MAX_PASSWORD_LENGTH = 1024
+const RPC_TIMEOUT_MS = 15_000
+// Total time for upstream calls, kept under maxDuration so the caller gets an answer.
+const PUSH_BUDGET_MS = 50_000
+const RELEASE_TIMEOUT_MS = 3_000
 
-async function rpc(
-  endpoint: string,
-  method: string,
-  params: unknown[],
-  rpcId = 1,
-): Promise<RpcResult> {
-  let res: Response
-  try {
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ method, params, id: rpcId }),
-    })
-  } catch (e) {
-    return { ok: false, error: `Network error: ${(e as Error).message}` }
-  }
-  if (!res.ok) {
-    return { ok: false, error: `HTTP ${res.status} ${res.statusText}` }
-  }
-  let body: { result?: unknown; error?: unknown }
-  try {
-    body = await res.json()
-  } catch {
-    return { ok: false, error: 'Non-JSON response from LimeSurvey' }
-  }
-  // RC2 puts errors in `error`, but successful sessions can also return objects
-  // with a `status` field embedding errors (e.g. { status: 'Invalid session key' }).
-  if (body.error) {
-    return {
-      ok: false,
-      error:
-        typeof body.error === 'string' ? body.error : JSON.stringify(body.error),
-    }
-  }
-  if (
-    body.result &&
-    typeof body.result === 'object' &&
-    body.result !== null &&
-    'status' in body.result
-  ) {
-    const status = (body.result as { status: unknown }).status
-    if (typeof status === 'string' && status !== 'OK') {
-      return { ok: false, error: status }
-    }
-  }
-  return { ok: true, result: body.result ?? null }
+const targetPolicy = () => ({
+  // Plain http only off the public deployment (self-hosted, local development).
+  allowHttp: !process.env.VERCEL,
+  // Loopback and private-network servers only when the host opts in.
+  allowPrivate: process.env.LIMESURVEY_PUSH_ALLOW_PRIVATE === '1',
+})
+
+// Fixed wording per failure; nothing the upstream server sent is included.
+const FAILURE_TEXT: Record<Rc2Failure, string> = {
+  unreachable:
+    'the LimeSurvey server could not be reached. Check the URL, and that the server is online and reachable from the internet',
+  'not-limesurvey':
+    'the server at that URL did not answer as LimeSurvey RemoteControl 2. Check the URL, and that the JSON-RPC interface is switched on in LimeSurvey (Global settings → Interfaces)',
+  credentials: 'LimeSurvey did not accept the username or password',
+  'locked-out': 'LimeSurvey is refusing logins for now after too many failed attempts. Wait a few minutes and try again',
+  session: 'LimeSurvey ended the session',
+  permission: 'this LimeSurvey user does not have permission',
+  survey: 'LimeSurvey has no survey with that ID',
+  active: 'the survey is active, and LimeSurvey does not allow changes to an active survey',
+  rejected: 'LimeSurvey rejected the request',
 }
 
-function endpointFor(url: string): string {
-  // Accept both `https://example.com` and `https://example.com/`. Append the
-  // standard RC2 path. Users can also pass the full endpoint; we don't double-up.
-  const trimmed = url.replace(/\/+$/, '')
-  if (trimmed.endsWith('/admin/remotecontrol')) return trimmed
-  if (trimmed.includes('/index.php')) return `${trimmed}/admin/remotecontrol`
-  return `${trimmed}/index.php/admin/remotecontrol`
-}
+const sentence = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
 
 type PushRequest = {
   url: string
@@ -85,31 +64,124 @@ type PushRequest = {
   testOnly?: boolean // if true, just authenticate and return
 }
 
+function refuse(status: number, error: string) {
+  return Response.json({ ok: false, error }, { status })
+}
+
+// The request body as text, or null if it is larger than `limit` bytes.
+async function readBody(req: NextRequest, limit: number): Promise<string | null> {
+  if (Number(req.headers.get('content-length') ?? 0) > limit) return null
+  if (!req.body) return ''
+  const reader = req.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > limit) {
+      await reader.cancel()
+      return null
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 export async function POST(req: NextRequest) {
+  // ── 0. who is asking, and for what ──────────────────────────────────────
+  const sameOrigin = isSameOriginRequest({
+    secFetchSite: req.headers.get('sec-fetch-site'),
+    origin: req.headers.get('origin'),
+    hosts: [req.headers.get('host'), req.headers.get('x-forwarded-host')],
+  })
+  if (!sameOrigin) {
+    return refuse(403, 'This route only accepts requests from the UtilityLab app itself.')
+  }
+  if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
+    return refuse(415, 'Invalid JSON request body')
+  }
+
+  const text = await readBody(req, MAX_BODY_BYTES)
+  if (text === null) {
+    return refuse(413, 'This study is too large to push. Download the LSS file instead.')
+  }
   let body: PushRequest
   try {
-    body = await req.json()
+    body = JSON.parse(text)
   } catch {
-    return Response.json({ ok: false, error: 'Invalid JSON request body' }, { status: 400 })
+    return refuse(400, 'Invalid JSON request body')
   }
+  if (!body || typeof body !== 'object') return refuse(400, 'Invalid JSON request body')
 
   const { url, username, password, surveyId, project, testOnly } = body
   if (!url || !username || !password || !surveyId) {
-    return Response.json(
-      { ok: false, error: 'url, username, password, surveyId are all required' },
-      { status: 400 },
-    )
+    return refuse(400, 'url, username, password, surveyId are all required')
+  }
+  if (
+    typeof username !== 'string' ||
+    typeof password !== 'string' ||
+    username.length > MAX_USERNAME_LENGTH ||
+    password.length > MAX_PASSWORD_LENGTH
+  ) {
+    return refuse(400, 'The username or password is not valid.')
+  }
+  if (!Number.isSafeInteger(surveyId) || surveyId < 1) {
+    return refuse(400, 'The survey ID must be a whole number.')
   }
 
-  const endpoint = endpointFor(url)
+  const design = testOnly ? undefined : project?.design
+  if (design) {
+    if (!Array.isArray(design.rows) || !Number.isInteger(design.numBlocks) || design.numBlocks < 1) {
+      return refuse(400, 'The design in this study could not be read.')
+    }
+    if (design.rows.length > MAX_DESIGN_ROWS || design.numBlocks > MAX_BLOCKS) {
+      return refuse(
+        400,
+        `This design is too large to push (the limit is ${MAX_DESIGN_ROWS} choice tasks in ${MAX_BLOCKS} blocks). Download the LSS file instead.`,
+      )
+    }
+  }
+
+  // ── where to: URL, then every address the name resolves to ─────────────
+  const policy = targetPolicy()
+  const target = checkPushUrl(url, policy)
+  if (!target.ok) return refuse(400, target.error)
+  const endpoint = target.endpoint
   const log: string[] = []
-  log.push(`Endpoint: ${endpoint}`)
+  log.push(`Endpoint: ${endpoint.href}`)
+
+  const resolved = await resolveTarget(endpoint.hostname, policy.allowPrivate)
+  if (!resolved.ok) {
+    if (resolved.reason === 'private') return refuse(400, PRIVATE_NAME_MESSAGE)
+    return Response.json({ ok: false, error: sentence(FAILURE_TEXT.unreachable), log }, { status: 200 })
+  }
+
+  const client = openRc2(endpoint, resolved.addresses)
+  try {
+    return await push(client, { username, password, surveyId, project, testOnly }, log)
+  } finally {
+    client.close()
+  }
+}
+
+async function push(
+  client: Rc2Client,
+  { username, password, surveyId, project, testOnly }: Omit<PushRequest, 'url'>,
+  log: string[],
+) {
+  const deadline = Date.now() + PUSH_BUDGET_MS
+  const outOfTime = () => deadline - Date.now() < 1_000
+  const rpc = (method: string, params: unknown[]): Promise<Rc2Result> =>
+    client.call(method, params, Math.max(1_000, Math.min(RPC_TIMEOUT_MS, deadline - Date.now())))
 
   // ── 1. authenticate ─────────────────────────────────────────────────────
-  const session = await rpc(endpoint, 'get_session_key', [username, password])
+  const session = await rpc('get_session_key', [username, password])
   if (!session.ok) {
+    const connected = session.failure !== 'unreachable' && session.failure !== 'not-limesurvey'
+    const text = FAILURE_TEXT[session.failure]
     return Response.json(
-      { ok: false, error: `Authentication failed: ${session.error}`, log },
+      { ok: false, error: connected ? `Authentication failed: ${text}.` : sentence(text), log },
       { status: 200 },
     )
   }
@@ -126,29 +198,31 @@ export async function POST(req: NextRequest) {
   }
   log.push(`Authenticated as ${username}`)
 
+  const release = () => client.call('release_session_key', [sessionKey], RELEASE_TIMEOUT_MS)
+
   if (testOnly) {
-    await rpc(endpoint, 'release_session_key', [sessionKey])
+    await release()
     return Response.json({ ok: true, log, message: 'Connection OK' })
   }
 
   // ── 2. validate survey + design ────────────────────────────────────────
-  if (!project.design || project.design.rows.length === 0) {
-    await rpc(endpoint, 'release_session_key', [sessionKey])
+  if (!project?.design || project.design.rows.length === 0) {
+    await release()
     return Response.json(
       { ok: false, error: 'Project has no design rows to push', log },
       { status: 200 },
     )
   }
 
-  const sProps = await rpc(endpoint, 'get_survey_properties', [
+  const sProps = await rpc('get_survey_properties', [
     sessionKey,
     surveyId,
     ['sid', 'active'],
   ])
   if (!sProps.ok) {
-    await rpc(endpoint, 'release_session_key', [sessionKey])
+    await release()
     return Response.json(
-      { ok: false, error: `Survey ${surveyId} not accessible: ${sProps.error}`, log },
+      { ok: false, error: `Survey ${surveyId} not accessible: ${FAILURE_TEXT[sProps.failure]}.`, log },
       { status: 200 },
     )
   }
@@ -160,71 +234,85 @@ export async function POST(req: NextRequest) {
   // case the survey displays them.
   const numBlocks = project.design.numBlocks
   const fail = async (error: string) => {
-    await rpc(endpoint, 'release_session_key', [sessionKey])
+    await release()
     return Response.json({ ok: false, error, log }, { status: 200 })
   }
+  const why = (r: Rc2Result) => (r.ok ? 'unexpected response' : FAILURE_TEXT[r.failure])
 
   if (numBlocks > 1) {
-    const addAssign = await rpc(endpoint, 'add_group', [sessionKey, surveyId, 'Block assignment', ''])
+    const addAssign = await rpc('add_group', [sessionKey, surveyId, 'Block assignment', ''])
     if (!addAssign.ok || typeof addAssign.result !== 'number') {
-      return fail(`add_group failed for block assignment: ${addAssign.ok ? 'unexpected response' : addAssign.error}`)
+      return fail(`add_group failed for block assignment: ${why(addAssign)}.`)
     }
     const lsq = buildBlockAssignmentLsq(numBlocks)
-    const imp = await rpc(endpoint, 'import_question', [
+    const imp = await rpc('import_question', [
       sessionKey,
       surveyId,
       addAssign.result,
       Buffer.from(lsq.xml, 'utf8').toString('base64'),
       'lsq',
     ])
-    if (!imp.ok) return fail(`Could not add the block assignment question: ${imp.error}`)
+    if (!imp.ok) return fail(`Could not add the block assignment question: ${why(imp)}.`)
     log.push(`Created block assignment (gid=${addAssign.result}, question ${lsq.questionCode})`)
   }
 
   const blockGroupIds: Record<number, number> = {}
   for (let b = 1; b <= numBlocks; b++) {
-    const add = await rpc(endpoint, 'add_group', [sessionKey, surveyId, 'Choice tasks', ''])
+    const add = await rpc('add_group', [sessionKey, surveyId, 'Choice tasks', ''])
     if (!add.ok || typeof add.result !== 'number') {
-      return fail(`add_group failed for block ${b}: ${add.ok ? 'unexpected response' : add.error}`)
+      return fail(`add_group failed for block ${b}: ${why(add)}.`)
     }
     const gid = add.result
     blockGroupIds[b] = gid
     if (numBlocks > 1) {
-      const setProps = await rpc(endpoint, 'set_group_properties', [
+      const setProps = await rpc('set_group_properties', [
         sessionKey,
         gid,
         { grelevance: blockRelevance(b) },
       ])
       if (!setProps.ok) {
-        return fail(`Could not limit group ${gid} to block ${b}: ${setProps.error}`)
+        return fail(`Could not limit group ${gid} to block ${b}: ${why(setProps)}.`)
       }
     }
     log.push(`Created group for block ${b} (gid=${gid})`)
   }
 
   // ── 4. push questions ──────────────────────────────────────────────────
+  const total = project.design.rows.length
   let questionIndex = 0
   for (const row of project.design.rows) {
-    const gid = blockGroupIds[row.block]
+    if (outOfTime()) {
+      log.push('Stopped: out of time')
+      return fail(
+        `The push ran out of time after ${questionIndex} of ${total} choice tasks; the survey now holds part of the design. Download the LSS file instead, or remove the new question groups in LimeSurvey and push again.`,
+      )
+    }
+    const gid = blockGroupIds[row?.block]
     if (!gid) {
-      log.push(`(skip) No group for block ${row.block}`)
+      log.push(`(skip) No group for block ${row?.block}`)
       continue
     }
-    const lsq = buildQuestionLsq(project, row, questionIndex++)
+    let lsq: ReturnType<typeof buildQuestionLsq>
+    try {
+      lsq = buildQuestionLsq(project, row, questionIndex++)
+    } catch {
+      return fail('A choice task in this study could not be turned into a LimeSurvey question.')
+    }
     const importData = Buffer.from(lsq.xml, 'utf8').toString('base64')
-    const add = await rpc(endpoint, 'import_question', [sessionKey, surveyId, gid, importData, 'lsq'])
+    const add = await rpc('import_question', [sessionKey, surveyId, gid, importData, 'lsq'])
     if (!add.ok) {
       log.push(
-        `  (failed) ${lsq.questionTitle} (${lsq.questionCode}): ${add.error}`,
+        `  (failed) ${lsq.questionTitle} (${lsq.questionCode}): ${FAILURE_TEXT[add.failure]}`,
       )
       // Continue — partial success is more useful than total failure
       continue
     }
-    log.push(`  ✓ ${lsq.questionTitle} (${lsq.questionCode}) → qid=${add.result}`)
+    const qid = typeof add.result === 'number' ? ` → qid=${add.result}` : ''
+    log.push(`  ✓ ${lsq.questionTitle} (${lsq.questionCode})${qid}`)
   }
 
   // ── 5. release session ─────────────────────────────────────────────────
-  await rpc(endpoint, 'release_session_key', [sessionKey])
+  await release()
   log.push('Session released')
 
   return Response.json({
