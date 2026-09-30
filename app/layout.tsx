@@ -32,6 +32,10 @@ export const metadata: Metadata = {
 // page follows the system. The old key held any past choice, so dropping it resets everyone to system once.
 const themeScript = `(function(){try{localStorage.removeItem('utilitylab:theme');var t=localStorage.getItem('utilitylab:theme-override');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`
 
+// Also before paint: marks a browser with no saved study, so the shell skeleton stays hidden
+// and the landing screen opens on a clean page. Mirrors hasStoredStudies in lib/library.
+const firstVisitScript = `(function(){var n=0;try{var s=localStorage;for(var i=0;i<s.length;i++){var k=s.key(i)||'';if(k==='utilitylab:project'||k.indexOf('utilitylab:study:')===0){n=1;break}}}catch(e){}if(!n)document.documentElement.setAttribute('data-first-visit','')})();`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -40,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: themeScript + firstVisitScript }} />
       </head>
       <body className="bg-paper text-ink font-sans antialiased">{children}</body>
     </html>

@@ -30,10 +30,10 @@ export function Logo({ size = 28 }: { size?: number }) {
   )
 }
 
-export function Wordmark({ className }: { className?: string }) {
+export function Wordmark({ className, size = 'md' }: { className?: string; size?: 'md' | 'lg' }) {
   return (
     <span
-      className={`font-display text-20 leading-none tracking-[-0.025em] text-ink ${className ?? ''}`}
+      className={`font-display ${size === 'lg' ? 'text-26' : 'text-20'} leading-none tracking-[-0.025em] text-ink ${className ?? ''}`}
     >
       <span className="font-bold">Utility</span>
       <span className="font-[380] text-ink-2">Lab</span>

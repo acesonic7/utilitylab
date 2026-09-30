@@ -7,9 +7,10 @@ function Bar({ className }: { className?: string }) {
 }
 
 // Quiet placeholder with the shell's geometry, so nothing jumps when the project loads.
+// A first visit opens on the landing screen instead, so the head script keeps this out of sight.
 export function ShellSkeleton() {
   return (
-    <div className="min-h-screen" aria-busy="true">
+    <div className="min-h-screen [[data-first-visit]_&]:invisible" aria-busy="true">
       <p role="status" className="sr-only">
         Loading your stated choice experiment…
       </p>

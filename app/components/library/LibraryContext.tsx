@@ -11,6 +11,8 @@ export type LibraryApi = {
   history: ArchivedDesign[]
   saveError: string | null
   openLibrary: () => void
+  /** Back to the landing screen; the open study stays open behind it. */
+  goHome: () => void
   /** Opens the new-study dialog. */
   startNew: () => void
   /** Creates and opens a study from the dialog's choices; returns an error message or null. */

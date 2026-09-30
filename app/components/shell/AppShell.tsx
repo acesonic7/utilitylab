@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { Project } from '@/lib/schema'
 import TopBar from '../TopBar'
 import { MobileNav } from './MobileNav'
@@ -8,7 +8,7 @@ import { APP_VERSION, CreditLink, Rail } from './Rail'
 import { useScrollSpy } from './useScrollSpy'
 import { useReviewOnDwell } from './Progress'
 import { ExampleBanner } from '../library/ExampleBanner'
-import { Walkthrough, WalkthroughLink, hasSeenWalkthrough } from './Walkthrough'
+import { Walkthrough, WalkthroughLink } from './Walkthrough'
 
 export const canvasClass = 'min-w-0 px-4 pb-24 pt-8 sm:px-8 lg:px-11 lg:pt-10'
 export const contentClass = 'mx-auto max-w-[1120px]'
@@ -35,10 +35,8 @@ export function AppShell({
 }) {
   const current = useScrollSpy()
   useReviewOnDwell(current)
+  // The landing screen is the welcome now, so the tour only opens when asked for.
   const [tourOpen, setTourOpen] = useState(false)
-  useEffect(() => {
-    if (!hasSeenWalkthrough()) setTourOpen(true)
-  }, [])
   const openTour = () => setTourOpen(true)
 
   return (

@@ -222,6 +222,8 @@ export type DOptimalInput = {
   multistarts: number
   maxPasses?: number
   rng: () => number
+  /** Called at each start and after every accepted swap, e.g. to replay the search. The rows change in place, so copy what you keep. */
+  onStep?: (rows: DesignRow[], dError: number) => void
 }
 
 export type DOptimalResult = {
@@ -303,11 +305,13 @@ function federovImprove(
   layout: ParamLayout,
   beta: number[],
   maxPasses: number,
+  onStep?: DOptimalInput['onStep'],
 ): { rows: DesignRow[]; dError: number; passes: number } {
   const rows: DesignRow[] = startRows.map((r) => ({ ...r, cells: { ...r.cells } }))
   const constraints = project.constraints
   const useConstraints = !!(constraints && constraints.length > 0)
   let curD = computeDError(project, rows, beta, layout)
+  onStep?.(rows, curD)
   let pass = 0
   let improved = true
   while (improved && pass < maxPasses) {
@@ -344,6 +348,7 @@ function federovImprove(
             row.cells[k] = bestNewLevel
             curD = bestNewD
             improved = true
+            onStep?.(rows, curD)
           }
         }
       }
@@ -363,7 +368,7 @@ export function dOptimalSearch(project: Project, input: DOptimalInput): DOptimal
   let totalPasses = 0
   for (let m = 0; m < M; m++) {
     const start = randomRows(project, input.numTasks, input.numBlocks, input.rng)
-    const r = federovImprove(project, start, layout, beta, maxPasses)
+    const r = federovImprove(project, start, layout, beta, maxPasses, input.onStep)
     totalPasses += r.passes
     // Keep the first start even when nothing is identified, so a run never returns no rows.
     if (r.dError < bestD || bestRows === null) {

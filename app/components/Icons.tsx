@@ -193,3 +193,20 @@ export function Folder({ size = 16, ...p }: IconProps) {
     </svg>
   )
 }
+
+export function Pause({ size = 16, ...p }: IconProps) {
+  return (
+    <svg {...base(size)} {...p}>
+      <line x1="9" y1="5" x2="9" y2="19" />
+      <line x1="15" y1="5" x2="15" y2="19" />
+    </svg>
+  )
+}
+
+export function Play({ size = 16, ...p }: IconProps) {
+  return (
+    <svg {...base(size)} {...p}>
+      <polygon points="7 4 20 12 7 20 7 4" />
+    </svg>
+  )
+}

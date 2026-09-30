@@ -212,6 +212,20 @@ export function markReviewed(id: string, design: string, step: ReviewStep): Revi
   return next
 }
 
+// False on a first visit: no study has ever been saved here, so the landing screen shows first.
+// Unreadable studies count, so loadLibrary can report them.
+export function hasStoredStudies(): boolean {
+  const s = storage()
+  if (!s) return false
+  try {
+    for (let i = 0; i < s.length; i++) {
+      const key = s.key(i)
+      if (key === LEGACY_KEY || key?.startsWith('utilitylab:study:')) return true
+    }
+  } catch {}
+  return false
+}
+
 // Loads the active study, migrating the pre-library single project on first run.
 // Never overwrites a study it could not read.
 export function loadLibrary(): LibraryState {
