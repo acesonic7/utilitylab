@@ -6,6 +6,7 @@ import TopBar from '../TopBar'
 import { MobileNav } from './MobileNav'
 import { APP_VERSION, CreditLink, Rail } from './Rail'
 import { useScrollSpy } from './useScrollSpy'
+import { useReviewOnDwell } from './Progress'
 import { Walkthrough, WalkthroughLink, hasSeenWalkthrough } from './Walkthrough'
 
 export const canvasClass = 'min-w-0 px-4 pb-24 pt-8 sm:px-8 lg:px-11 lg:pt-10'
@@ -32,6 +33,7 @@ export function AppShell({
   children: ReactNode
 }) {
   const current = useScrollSpy()
+  useReviewOnDwell(current)
   const [tourOpen, setTourOpen] = useState(false)
   useEffect(() => {
     if (!hasSeenWalkthrough()) setTourOpen(true)

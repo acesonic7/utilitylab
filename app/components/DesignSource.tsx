@@ -7,8 +7,9 @@ import CsvUpload from './CsvUpload'
 import DesignGenerator from './DesignGenerator'
 import { XMark } from './Icons'
 import { IconButton, Tag } from './ui'
+import type { DesignPanel } from './Workspace'
 
-export type DesignSourceMode = 'upload' | 'generate'
+export type DesignSourceMode = DesignPanel
 
 export const DESIGN_PANEL_IDS: Record<DesignSourceMode, string> = {
   upload: 'design-upload-panel',

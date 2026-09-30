@@ -38,9 +38,11 @@ import { WorkspaceProvider } from './Workspace'
 import ProjectHeader from './ProjectHeader'
 import { AppShell } from './shell/AppShell'
 import { ShellSkeleton } from './shell/ShellSkeleton'
+import { ProgressProvider } from './shell/Progress'
 import { markSaveFailed, markSaved } from './shell/SavedIndicator'
 import { LibraryContext, type LibraryApi } from './library/LibraryContext'
 import { StudyLibrary } from './library/StudyLibrary'
+import { NewStudyDialog } from './library/NewStudyDialog'
 import { SECTIONS, sectionClass } from './shell/sections'
 import type { SectionId } from './Workspace'
 import StructureSection from './sections/StructureSection'
@@ -75,6 +77,7 @@ export default function Designer() {
   const [history, setHistory] = useState<ArchivedDesign[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
 
   const refreshStudies = useCallback(() => setStudies(listStudies()), [])
 
@@ -160,6 +163,7 @@ export default function Designer() {
       if (opts?.history?.length) setDesignHistory(p.id, opts.history)
       switchTo(p)
       setLibraryOpen(false)
+      setNewOpen(false)
       return null
     },
     [switchTo],
@@ -173,7 +177,11 @@ export default function Designer() {
       history,
       saveError,
       openLibrary: () => setLibraryOpen(true),
-      newBlank: () => void create(blankStudy()),
+      startNew: () => {
+        setLibraryOpen(false)
+        setNewOpen(true)
+      },
+      createStudy: (opts) => create(blankStudy({ ...opts, starterAttribute: false })),
       newFromExample: () => void create(exampleStudy(), { fromExample: true }),
       open: (id) => {
         const p = openStudy(id)
@@ -235,6 +243,7 @@ export default function Designer() {
     <WorkspaceProvider>
       <LatestProjectProvider get={getProject}>
         <DesignHealthProvider project={deferred}>
+          <ProgressProvider project={project}>
           <AppShell project={project} header={<ProjectHeader project={project} />}>
             {SECTIONS.map(({ id, title }) => {
               const View = SECTION_VIEWS[id]
@@ -249,7 +258,9 @@ export default function Designer() {
               )
             })}
           </AppShell>
+          </ProgressProvider>
         </DesignHealthProvider>
+        <NewStudyDialog open={newOpen} onClose={() => setNewOpen(false)} />
       </LatestProjectProvider>
     </WorkspaceProvider>
       <StudyLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} />

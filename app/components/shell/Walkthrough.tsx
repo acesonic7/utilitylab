@@ -5,6 +5,7 @@ import type { Project } from '@/lib/schema'
 import { altIdentities } from '@/lib/altIdentity'
 import { AltGlyph, Button, cx } from '../ui'
 import { useWorkspaceActions, type SectionId } from '../Workspace'
+import { useLibrary } from '../library/LibraryContext'
 import { ChevronLeft, ChevronRight, XMark } from '../Icons'
 
 const SEEN_KEY = 'utilitylab:walkthrough'
@@ -71,7 +72,7 @@ function steps(project: Project): Step[] {
     {
       kicker: 'Before you start',
       title: 'Your studies live in this browser',
-      body: 'Edits save automatically to this browser on this device, and nothing leaves it unless you push to LimeSurvey. Open Studies from the study name at the top to start a new study, switch between studies or download one as a project file — do that to keep a copy, since clearing browser data removes everything. Reopen this tour any time from the Walkthrough link.',
+      body: 'Edits save automatically to this browser, and nothing leaves it unless you push to LimeSurvey. Download a study as a project file to keep a copy, since clearing browser data removes everything. Start your own with New study, the + next to the study name: the steps on the left tick off as you go, and the button at the top right always points to the next one.',
     },
   ]
 }
@@ -88,6 +89,7 @@ export function Walkthrough({
   const ref = useRef<HTMLDialogElement>(null)
   const [i, setI] = useState(0)
   const { goTo } = useWorkspaceActions()
+  const lib = useLibrary()
   const all = steps(project)
   const step = all[i]
   const last = i === all.length - 1
@@ -177,9 +179,19 @@ export function Walkthrough({
             </Button>
           )}
           {last ? (
-            <Button variant="primary" onClick={() => finish()} autoFocus>
-              Start exploring
-            </Button>
+            <>
+              <Button onClick={() => finish()}>Keep exploring</Button>
+              <Button
+                variant="primary"
+                autoFocus
+                onClick={() => {
+                  finish()
+                  lib.startNew()
+                }}
+              >
+                Start a new study
+              </Button>
+            </>
           ) : (
             <Button variant="primary" onClick={() => setI(i + 1)} autoFocus={i === 0}>
               {i === 0 ? 'Take the tour' : 'Next'}

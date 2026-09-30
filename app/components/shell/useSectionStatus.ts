@@ -6,9 +6,8 @@ import { useDesignHealth } from '../DesignHealth'
 import { useWorkspace, type SectionId } from '../Workspace'
 import { plural } from '@/lib/text'
 
-export type SectionMarker =
-  | { kind: 'done'; label: string }
-  | { kind: 'count'; tone: 'risk' | 'caution'; count: number; label: string }
+// Only findings get a marker; the step dots in the rail show which steps are done.
+export type SectionMarker = { kind: 'count'; tone: 'risk' | 'caution'; count: number; label: string }
 
 export type SectionStatus = { line: string; marker: SectionMarker | null }
 
@@ -20,7 +19,6 @@ export function useSectionStatus(project: Project): Record<SectionId, SectionSta
 
   const nAlts = project.alternatives.length
   const nAttrs = project.attributes.length
-  const structureReady = nAlts >= 2 && nAttrs >= 1
 
   let taskLine = shape ? plural(shape.tasks, 'choice task') : 'No choice tasks yet'
   if (shape && activeTask) {
@@ -44,7 +42,7 @@ export function useSectionStatus(project: Project): Record<SectionId, SectionSta
       ? { kind: 'count', tone: 'risk', count: concerns, label: plural(concerns, 'concern') }
       : warnings > 0
         ? { kind: 'count', tone: 'caution', count: warnings, label: plural(warnings, 'warning') }
-        : { kind: 'done', label: 'No findings' }
+        : null
 
   const diagLine = !shape
     ? 'No design yet'
@@ -58,11 +56,11 @@ export function useSectionStatus(project: Project): Record<SectionId, SectionSta
   return {
     structure: {
       line: `${plural(nAlts, 'alternative')} × ${plural(nAttrs, 'attribute')}`,
-      marker: structureReady ? { kind: 'done', label: 'Complete' } : null,
+      marker: null,
     },
     design: {
       line: shape ? `${plural(shape.tasks, 'choice task')} · ${plural(shape.blocks, 'block')}` : 'No design yet',
-      marker: shape ? { kind: 'done', label: 'Complete' } : null,
+      marker: null,
     },
     'choice-tasks': { line: taskLine, marker: null },
     diagnostics: { line: diagLine, marker: diagMarker },

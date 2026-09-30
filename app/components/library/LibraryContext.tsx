@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { Project } from '@/lib/schema'
-import type { ArchivedDesign, StudyMeta } from '@/lib/library'
+import type { ArchivedDesign, NewStudyOptions, StudyMeta } from '@/lib/library'
 
 export type LibraryApi = {
   studies: StudyMeta[]
@@ -11,7 +11,10 @@ export type LibraryApi = {
   history: ArchivedDesign[]
   saveError: string | null
   openLibrary: () => void
-  newBlank: () => void
+  /** Opens the new-study dialog. */
+  startNew: () => void
+  /** Creates and opens a study from the dialog's choices; returns an error message or null. */
+  createStudy: (opts: NewStudyOptions) => string | null
   newFromExample: () => void
   open: (id: string) => void
   duplicate: (id: string) => void

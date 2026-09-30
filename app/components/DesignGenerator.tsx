@@ -10,10 +10,11 @@ import {
 } from '@/lib/designGenerator'
 import { identificationIssue, paramCount, priorLabels } from '@/lib/dOptimal'
 import { analyzeSample, type SampleStatus } from '@/lib/sampleSize'
-import { ArrowDown, Refresh } from './Icons'
-import { Field, Gauge, Input, NumberInput, Tag, cx, type GaugeBand, type TagTone } from './ui'
+import { ArrowDown, ChevronRight, Refresh } from './Icons'
+import { Button, Field, Gauge, Input, NumberInput, Tag, cx, type GaugeBand, type TagTone } from './ui'
 import { Disclosure, inkButtonClass } from './design/controls'
 import { useLatestProject, type SetProject } from './ProjectStore'
+import { useWorkspaceActions } from './Workspace'
 
 const METHODS: { value: GenerationMethod; title: string; subtitle: string }[] = [
   { value: 'd-optimal', title: 'D-optimal', subtitle: 'Maximizes statistical efficiency for an MNL model' },
@@ -102,6 +103,7 @@ export default function DesignGenerator({
   const suggestions = suggestNumTasks(project)
   const perRespondent = (numTasks / Math.max(1, numBlocks)).toFixed(numTasks % numBlocks === 0 ? 0 : 1)
 
+  const { goTo } = useWorkspaceActions()
   const blocker = method === 'd-optimal' ? identificationIssue(project, numTasks) : null
 
   const run = () => {
@@ -382,6 +384,12 @@ export default function DesignGenerator({
             lastRun && !generating && <ResultSummary run={lastRun} />
           )}
         </div>
+        {lastRun && !generating && !blocker && (
+          <Button onClick={() => goTo('choice-tasks', { lens: false })}>
+            Preview choice tasks
+            <ChevronRight size={14} aria-hidden="true" />
+          </Button>
+        )}
       </div>
     </div>
   )

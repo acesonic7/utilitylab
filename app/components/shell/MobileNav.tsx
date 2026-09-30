@@ -7,11 +7,14 @@ import { cx } from '../ui'
 import { SECTIONS, onSectionLinkClick } from './sections'
 import { HereDot, StatusMarker } from './StatusMarker'
 import { useSectionStatus } from './useSectionStatus'
+import { useProgress } from './Progress'
+import { StepDot } from './Rail'
 
 // Compact section strip shown instead of the rail below lg.
 export function MobileNav({ project, current }: { project: Project; current: SectionId }) {
   const { goTo } = useWorkspaceActions()
   const status = useSectionStatus(project)
+  const { states } = useProgress()
   const strip = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -27,7 +30,7 @@ export function MobileNav({ project, current }: { project: Project; current: Sec
 
   return (
     <nav
-      aria-label="Sections"
+      aria-label="Steps"
       className="sticky top-14 z-20 border-b border-line bg-paper/90 backdrop-blur-md lg:hidden"
     >
       <ul
@@ -49,11 +52,12 @@ export function MobileNav({ project, current }: { project: Project; current: Sec
                   on ? 'bg-surface text-ink shadow-hairline' : 'text-ink-2 hover:bg-surface-3 hover:text-ink',
                 )}
               >
-                <span aria-hidden="true" className={cx('font-mono text-12', on ? 'text-ink' : 'text-ink-3')}>
-                  {s.index}
-                </span>
+                <StepDot index={s.index} state={states[s.id]} size={18} />
                 {s.title}
-                {marker?.kind === 'count' && <StatusMarker marker={marker} />}
+                {states[s.id] !== 'todo' && (
+                  <span className="sr-only">{states[s.id] === 'done' ? ', done' : ', next step'}</span>
+                )}
+                <StatusMarker marker={marker} />
                 {on && <HereDot />}
               </a>
             </li>

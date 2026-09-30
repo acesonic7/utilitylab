@@ -2,7 +2,7 @@ import type { Design, Project } from './schema'
 import { travelModeExample } from './example'
 import { createAttribute } from './defaults'
 import { newAlternative } from './altRoles'
-import { slugify } from './slug'
+import { slugify, uniqueSlug } from './slug'
 
 // Browser storage for the study library. Each study lives under its own key so a
 // failed or corrupt write can only ever affect that one study.
@@ -11,6 +11,7 @@ const ACTIVE_KEY = 'utilitylab:active'
 const LEGACY_KEY = 'utilitylab:project'
 const studyKey = (id: string) => `utilitylab:study:${id}`
 const historyKey = (id: string) => `utilitylab:designs:${id}`
+const progressKey = (id: string) => `utilitylab:progress:${id}`
 
 export const DESIGN_HISTORY_LIMIT = 10
 
@@ -126,16 +127,32 @@ export function exampleStudy(): Project {
   return { ...structuredClone(travelModeExample), id: newStudyId(), createdAt: now, updatedAt: now }
 }
 
-export function blankStudy(): Project {
+export type NewStudyOptions = {
+  name?: string
+  description?: string
+  experimentType?: Project['experimentType']
+  /** Labels for labeled studies, or how many generic alternatives (A, B, …) to create. */
+  alternatives?: string[] | number
+  optOut?: boolean
+  /** Seed one placeholder attribute; the setup dialog leaves the first attribute to the user. */
+  starterAttribute?: boolean
+}
+
+export function fileSlug(name: string): string {
+  return slugify(name).replace(/_/g, '-') || 'untitled-study'
+}
+
+export function blankStudy(opts: NewStudyOptions = {}): Project {
   const now = new Date().toISOString()
+  const name = opts.name?.trim() || 'Untitled stated choice experiment'
   const base: Project = {
     id: newStudyId(),
-    slug: 'untitled-study',
-    name: 'Untitled stated choice experiment',
-    description: '',
+    slug: opts.name?.trim() ? fileSlug(name) : 'untitled-study',
+    name,
+    description: opts.description?.trim() ?? '',
     createdAt: now,
     updatedAt: now,
-    experimentType: 'unlabeled',
+    experimentType: opts.experimentType ?? 'unlabeled',
     alternatives: [],
     attributes: [],
     contextVariables: [],
@@ -149,16 +166,50 @@ export function blankStudy(): Project {
       optOutPosition: 'last',
     },
   }
-  const a = newAlternative(base)
-  const withA = { ...base, alternatives: [a] }
-  const b = { ...newAlternative(withA), position: 1 }
-  const withAlts = { ...withA, alternatives: [a, b] }
-  const attr = createAttribute(withAlts)
-  return {
-    ...withAlts,
-    attributes: [attr],
-    builder: { ...base.builder, alternativeOrder: [a.id, b.id], attributeOrder: [attr.id] },
+  const spec = opts.alternatives ?? 2
+  const labels = typeof spec === 'number' ? Array.from({ length: spec }, () => null) : spec
+  let p = base
+  for (const label of labels) {
+    const alt = newAlternative(p)
+    const named = label?.trim()
+      ? { ...alt, label: label.trim(), id: uniqueSlug(label, p.alternatives.map((a) => a.id)) }
+      : alt
+    p = { ...p, alternatives: [...p.alternatives, { ...named, position: p.alternatives.length }] }
   }
+  if (opts.optOut) {
+    p = { ...p, alternatives: [...p.alternatives, { ...newAlternative(p, { optOut: true }), position: p.alternatives.length }] }
+  }
+  const attributes = opts.starterAttribute === false ? [] : [createAttribute(p)]
+  return {
+    ...p,
+    attributes,
+    builder: {
+      ...base.builder,
+      alternativeOrder: p.alternatives.map((a) => a.id),
+      attributeOrder: attributes.map((a) => a.id),
+    },
+  }
+}
+
+// Review progress for the guided flow: which later steps the user has been through for the
+// study's current design. A new design (another uploadedAt) starts the review over.
+export type ReviewStep = 'choice-tasks' | 'diagnostics' | 'export'
+
+type StoredProgress = { design: string; reviewed: ReviewStep[] }
+
+export function readReviewed(id: string, design: string | null): ReviewStep[] {
+  if (!design) return []
+  const r = readJson<StoredProgress>(progressKey(id))
+  const v = r.ok ? r.value : null
+  return v && v.design === design && Array.isArray(v.reviewed) ? v.reviewed : []
+}
+
+export function markReviewed(id: string, design: string, step: ReviewStep): ReviewStep[] {
+  const cur = readReviewed(id, design)
+  if (cur.includes(step)) return cur
+  const next = [...cur, step]
+  write(progressKey(id), { design, reviewed: next })
+  return next
 }
 
 // Loads the active study, migrating the pre-library single project on first run.
@@ -275,6 +326,7 @@ export function deleteStudy(id: string): SaveResult {
   if (!w.ok) return w
   s?.removeItem(studyKey(id))
   s?.removeItem(historyKey(id))
+  s?.removeItem(progressKey(id))
   return { ok: true }
 }
 

@@ -7,7 +7,7 @@ import { designShape } from '@/lib/diagnostics'
 import { designSignature } from '@/lib/signature'
 import { formatDay } from '@/lib/formatDate'
 import { useDesignHealth } from './DesignHealth'
-import { Download, Folder } from './Icons'
+import { Download, Folder, Plus } from './Icons'
 import { useLibrary } from './library/LibraryContext'
 import { AltGlyph, Button, CopyButton, Gauge, Stat, Tag, type GaugeBand } from './ui'
 
@@ -86,6 +86,9 @@ export default function ProjectHeader({ project }: { project: Project }) {
           </span>
         )}
         <span className="ml-auto flex items-center gap-1">
+          <Button variant="ghost" size="sm" icon={<Plus />} onClick={lib.startNew}>
+            New study
+          </Button>
           <Button variant="ghost" size="sm" icon={<Folder />} onClick={lib.openLibrary}>
             Studies
           </Button>
