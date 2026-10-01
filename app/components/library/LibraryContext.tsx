@@ -9,6 +9,10 @@ export type LibraryApi = {
   unreadable: string[]
   activeId: string
   history: ArchivedDesign[]
+  /** Earlier designs of the open study held only in this tab (browser storage is full). */
+  unsavedHistory: number
+  /** Why earlier designs were not all kept, or null. */
+  historyNote: string | null
   saveError: string | null
   openLibrary: () => void
   /** Back to the landing screen; the open study stays open behind it. */

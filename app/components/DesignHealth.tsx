@@ -6,6 +6,7 @@ import { validate, type Report } from '@/lib/validation'
 import { buildPriorVector, computeDError, paramLayout } from '@/lib/dOptimal'
 import { analyzeSample, type SampleAnalysis } from '@/lib/sampleSize'
 import { constraintViolations, type ConstraintViolations } from '@/lib/diagnosticsView'
+import { designFit, type DesignFit } from '@/lib/designFit'
 import {
   designShape,
   diagnosticsByTask,
@@ -27,6 +28,8 @@ export type DesignHealth = {
   constraintViolations: number
   /** Constraint violations per design row and per constraint: the one source for every count. */
   violations: ConstraintViolations
+  /** Where the design no longer matches the structure (edited after the design was made), or null. */
+  fit: DesignFit | null
 }
 
 export function computeDesignHealth(project: Project): DesignHealth {
@@ -48,6 +51,7 @@ export function computeDesignHealth(project: Project): DesignHealth {
     totalFindings: report.findings.length,
     constraintViolations: violations.total,
     violations,
+    fit: designFit(project),
   }
 }
 

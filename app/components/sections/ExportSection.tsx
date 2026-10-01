@@ -9,6 +9,7 @@ import { Info } from '../Icons'
 import ExportButtons from '../ExportButtons'
 import LimeSurveyPush from '../LimeSurveyPush'
 import { MethodsPanel } from '../export/MethodsPanel'
+import { DesignFitNotice } from '../design/DesignFitNotice'
 
 const PUSH_PANEL_ID = 'limesurvey-push'
 const PUSH_TOGGLE_ID = 'limesurvey-push-toggle'
@@ -55,6 +56,8 @@ export default function ExportSection({
           </Button>
         </div>
       )}
+
+      {hasDesign && <DesignFitNotice context="use" />}
 
       <ExportButtons
         project={project}

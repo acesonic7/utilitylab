@@ -1,11 +1,16 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef } from 'react'
-import type { Project, Constraint } from '@/lib/schema'
+import type { Attribute, Project, Constraint } from '@/lib/schema'
 import { getLevelsForAlt } from '@/lib/levelLookup'
-import { countViolations } from '@/lib/constraints'
+import { constraintProblem, countViolations } from '@/lib/constraints'
 import { Button, Checkbox, IconButton, Panel, Select, SeverityPips, Tag, cx } from '../ui'
 import { Plus, XMark } from '../Icons'
+
+// The levels a clause can name: the alternative's own set when it has one.
+function levelsFor(attr: Attribute, altId: string) {
+  return altId === 'all' ? attr.levels : getLevelsForAlt(attr, altId)
+}
 
 function genId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -115,6 +120,7 @@ export default function ConstraintsEditor({
                   project={project}
                   constraint={c}
                   violations={violations.get(c.id)}
+                  problem={constraintProblem(c, project)}
                   onUpdate={(changes, focus) => update(c.id, changes, focus)}
                   onRemove={() => remove(c.id)}
                 />
@@ -152,6 +158,7 @@ function ConstraintCard({
   project,
   constraint: c,
   violations,
+  problem,
   onUpdate,
   onRemove,
 }: {
@@ -159,6 +166,8 @@ function ConstraintCard({
   project: Project
   constraint: Constraint
   violations: number | undefined
+  /** Why the constraint can never match, or null. */
+  problem: string | null
   onUpdate: (changes: Partial<Constraint>, focus?: string) => void
   onRemove: () => void
 }) {
@@ -191,7 +200,7 @@ function ConstraintCard({
   const addClause = () => {
     const firstAttr = applicableAttrs[0]
     if (!firstAttr) return
-    const firstLevel = firstAttr.levels[0]
+    const firstLevel = levelsFor(firstAttr, c.alternativeId)[0]
     if (!firstLevel) return
     onUpdate(
       { clauses: [...c.clauses, { attributeId: firstAttr.id, levelId: firstLevel.id }] },
@@ -238,6 +247,11 @@ function ConstraintCard({
           }}
           className="max-w-[14rem]"
         >
+          {c.alternativeId !== 'all' && !altsActive.some((a) => a.id === c.alternativeId) && (
+            <option value={c.alternativeId} disabled>
+              — deleted alternative —
+            </option>
+          )}
           <option value="all">any alternative</option>
           {altsActive.map((a) => (
             <option key={a.id} value={a.id}>
@@ -248,7 +262,7 @@ function ConstraintCard({
         <span className="text-13 text-ink-2">when</span>
         {!c.enabled && <Tag tone="muted">Off</Tag>}
         <span className="ml-auto flex items-center gap-2">
-          <ViolationStatus n={violations} />
+          {problem ? <Tag tone="risk">Forbids nothing</Tag> : <ViolationStatus n={violations} />}
           <IconButton
             size="sm"
             label={`Remove constraint ${n}`}
@@ -284,10 +298,15 @@ function ConstraintCard({
                 value={cl.attributeId}
                 onChange={(e) => {
                   const newAttr = applicableAttrs.find((a) => a.id === e.target.value)
-                  const newLid = newAttr?.levels[0]?.id ?? ''
+                  const newLid = newAttr ? levelsFor(newAttr, c.alternativeId)[0]?.id ?? '' : ''
                   updateClause(i, { attributeId: e.target.value, levelId: newLid })
                 }}
               >
+                {!attr && (
+                  <option value={cl.attributeId} disabled>
+                    {project.attributes.some((a) => a.id === cl.attributeId) ? '— not shown here —' : '— deleted attribute —'}
+                  </option>
+                )}
                 {applicableAttrs.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -304,12 +323,12 @@ function ConstraintCard({
                 onChange={(e) => updateClause(i, { levelId: e.target.value })}
                 disabled={!attr}
               >
-                {(attr
-                  ? c.alternativeId === 'all'
-                    ? attr.levels
-                    : getLevelsForAlt(attr, c.alternativeId)
-                  : []
-                ).map((l) => (
+                {attr && !levelsFor(attr, c.alternativeId).some((l) => l.id === cl.levelId) && (
+                  <option value={cl.levelId} disabled>
+                    — pick a level —
+                  </option>
+                )}
+                {(attr ? levelsFor(attr, c.alternativeId) : []).map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.displayValue ?? String(l.value)}
                   </option>
@@ -340,6 +359,7 @@ function ConstraintCard({
           </Button>
         </li>
       </ul>
+      {problem && <p className="mt-2 text-12 font-medium text-risk sm:pl-6">{problem}</p>}
     </li>
   )
 }

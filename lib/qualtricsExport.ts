@@ -3,6 +3,7 @@ import { cellKey } from './validation'
 import { levelDisplayText } from './format'
 import { findLevelInAttr } from './levelLookup'
 import { buildTxtCommentBlock } from './wiringGuide'
+import { exportBlocks } from './blocks'
 
 function getLevel(attr: Attribute, levelId: string | undefined) {
   if (!levelId) return undefined
@@ -100,6 +101,7 @@ export function txtBlockingNotes(numBlocks: number): string {
 
 export function exportTxt(project: Project): string {
   if (!project.design) throw new Error('Project has no design')
+  const { rows, numBlocks } = exportBlocks(project.design)
   const altOrder = project.builder.alternativeOrder
     .map((id) => project.alternatives.find((a) => a.id === id))
     .filter((a): a is Alternative => !!a)
@@ -108,7 +110,7 @@ export function exportTxt(project: Project): string {
 
   // Advanced Format cannot express survey flow, so blocking and pivot wiring are
   // spelled out in a Setup notes block the researcher deletes after setup.
-  const blockNotes = txtBlockingNotes(project.design.numBlocks)
+  const blockNotes = txtBlockingNotes(numBlocks)
   const commentBlock = buildTxtCommentBlock(project)
   if (blockNotes || commentBlock) {
     lines.push('[[Block:Setup notes]]', '')
@@ -116,9 +118,9 @@ export function exportTxt(project: Project): string {
     if (commentBlock) lines.push(commentBlock)
   }
 
-  for (let b = 1; b <= project.design.numBlocks; b++) {
+  for (let b = 1; b <= numBlocks; b++) {
     lines.push(`[[Block:Block ${b}]]`, '')
-    const blockRows = project.design.rows.filter((r) => r.block === b)
+    const blockRows = rows.filter((r) => r.block === b)
     for (const row of blockRows) {
       lines.push('[[Question:MC:SingleAnswer]]')
       lines.push(`[[ID:Q_${b}_${row.taskId}]]`)
@@ -155,6 +157,7 @@ type QsfFlowNode =
 
 export function exportQsf(project: Project): string {
   if (!project.design) throw new Error('Project has no design')
+  const { rows, numBlocks } = exportBlocks(project.design)
 
   const altOrder = project.builder.alternativeOrder
     .map((id) => project.alternatives.find((a) => a.id === id))
@@ -175,11 +178,11 @@ export function exportQsf(project: Project): string {
   const blockIds: string[] = []
   let qIndex = 1
 
-  for (let b = 1; b <= project.design.numBlocks; b++) {
+  for (let b = 1; b <= numBlocks; b++) {
     const blockId = `BL_${randomId(15)}`
     blockIds.push(blockId)
     const blockElements: Array<{ Type: 'Question'; QuestionID: string }> = []
-    const blockRows = project.design.rows.filter((r) => r.block === b)
+    const blockRows = rows.filter((r) => r.block === b)
 
     for (const row of blockRows) {
       const qId = `QID${qIndex++}`

@@ -1,5 +1,6 @@
 import type { Project, DesignRow, Alternative } from './schema'
 import { renderTaskAsHtml } from './qualtricsExport'
+import { exportBlocks } from './blocks'
 
 // LimeSurvey export module. Produces:
 //   - LSQ XML for a single question (used by the API-push path)
@@ -77,7 +78,7 @@ export function blockAssignmentEquation(numBlocks: number): string {
 
 function choiceTaskSpec(project: Project, row: DesignRow, qid: number, gid: number, order: number): QuestionSpec {
   const attributes: Attr[] =
-    project.design && project.design.numBlocks > 1
+    project.design && exportBlocks(project.design).numBlocks > 1
       ? [{ attribute: 'random_group', value: blockRandomGroup(row.block) }]
       : []
   return {
@@ -216,8 +217,7 @@ export function buildBlockAssignmentLsq(numBlocks: number, language = 'en'): Lsq
 
 export function buildSurveyLss(project: Project, language = 'en'): string {
   if (!project.design) throw new Error('Project has no design')
-  const rows = project.design.rows
-  const numBlocks = project.design.numBlocks
+  const { rows, numBlocks } = exportBlocks(project.design)
   const blocks = Array.from({ length: numBlocks }, (_, b) => b + 1)
   const assign = numBlocks > 1
   const gidFor = (b: number) => (assign ? b + 1 : b)

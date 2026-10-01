@@ -11,6 +11,8 @@ import type { AltIdentity } from '@/lib/altIdentity'
 import { altStyle } from '@/lib/altIdentity'
 import { paramCount, priorLabels } from '@/lib/dOptimal'
 import { formatNumeric } from '@/lib/format'
+import { changeAttributeType } from '@/lib/typeChange'
+import { defaultToken, tokenFor } from '@/lib/wiringGuide'
 import { AltGlyph, Button, Checkbox, Field, Input, NumberInput, Seg, Select, cx } from '../../ui'
 import ImageUrlInput from '../ImageUrlInput'
 import { LevelsTable, H4, type PriorColumn } from './LevelsTable'
@@ -142,7 +144,8 @@ function PivotEditor({
         pivot: {
           mode: newMode,
           previewReference: pivot?.previewReference ?? 1,
-          referenceToken: pivot?.referenceToken ?? `REF_${attribute.id.toUpperCase()}`,
+          // Left unset by default, so the token follows the attribute's name.
+          referenceToken: pivot?.referenceToken,
         },
       })
     }
@@ -156,14 +159,21 @@ function PivotEditor({
       <p className="mt-2 text-12 text-ink-3">{PIVOT_EXPLAIN[mode]}</p>
       {mode !== 'none' && (
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <Field label="Reference token" hint="Placeholder name used in the wiring guide.">
+          <Field
+            label="Reference token"
+            hint={
+              pivot?.referenceToken && tokenFor(attribute) !== pivot.referenceToken.trim()
+                ? `Written ${tokenFor(attribute)}: letters and digits only, starting with a letter.`
+                : 'The LimeSurvey question code and Qualtrics embedded-data name the wiring guide uses.'
+            }
+          >
             {(id, describedBy) => (
               <Input
                 id={id}
                 aria-describedby={describedBy}
                 mono
                 value={pivot?.referenceToken ?? ''}
-                placeholder={`REF_${attribute.id.toUpperCase()}`}
+                placeholder={defaultToken(attribute)}
                 onChange={(e) =>
                   onUpdate({
                     pivot: { ...(pivot ?? { mode }), mode, referenceToken: e.target.value || undefined },
@@ -261,7 +271,7 @@ export function AttributeDetail({
                 <Select
                   id={fid}
                   value={attribute.type}
-                  onChange={(e) => onUpdate({ type: e.target.value as AttributeType })}
+                  onChange={(e) => onUpdate(changeAttributeType(attribute, e.target.value as AttributeType))}
                 >
                   {TYPES.map((t) => (
                     <option key={t.value} value={t.value}>

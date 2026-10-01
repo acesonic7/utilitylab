@@ -28,6 +28,7 @@ import {
   saveStudy,
   setDesignHistory,
   type ArchivedDesign,
+  type HistoryWrite,
   type StudyMeta,
 } from '@/lib/library'
 import { downloadText, parseProjectFile, projectFileName, serializeProjectFile } from '@/lib/projectFile'
@@ -38,6 +39,7 @@ import { LatestProjectProvider, type SetProject } from './ProjectStore'
 import { WorkspaceProvider } from './Workspace'
 import ProjectHeader from './ProjectHeader'
 import { AppShell } from './shell/AppShell'
+import { StudyErrorBoundary } from './StudyErrorBoundary'
 import { ShellSkeleton } from './shell/ShellSkeleton'
 import { ProgressProvider } from './shell/Progress'
 import { markSaveFailed, markSaved } from './shell/SavedIndicator'
@@ -78,12 +80,31 @@ export default function Designer() {
   const [unreadable, setUnreadable] = useState<string[]>([])
   const [history, setHistory] = useState<ArchivedDesign[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  // Earlier designs that did not fit in browser storage, per study. They live only in this tab,
+  // so they are listed, included in project downloads, and guarded by a leave-page warning.
+  const overflow = useRef(new Map<string, ArchivedDesign[]>())
+  // Earlier designs an imported file had that could not be read.
+  const [historyNote, setHistoryNote] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
   // The landing screen: 'first' on a first visit (with its entrance), 'return' when reopened from the logo.
   const [landing, setLanding] = useState<'first' | 'return' | null>(null)
 
   const refreshStudies = useCallback(() => setStudies(listStudies()), [])
+
+  // Stored entries plus any that only this tab holds, newest first.
+  const fullHistory = useCallback((id: string): ArchivedDesign[] => {
+    const held = overflow.current.get(id) ?? []
+    const stored = designHistory(id).filter((a) => !held.some((h) => h.design.uploadedAt === a.design.uploadedAt))
+    return [...stored, ...held].sort((a, b) => b.archivedAt.localeCompare(a.archivedAt))
+  }, [])
+
+  // Every change to a study's earlier designs goes through here, so none is dropped silently.
+  const storeHistory = useCallback((id: string, write: HistoryWrite) => {
+    if (write.overflow.length) overflow.current.set(id, write.overflow)
+    else overflow.current.delete(id)
+    if (id === latest.current?.id) setHistory([...write.stored, ...write.overflow])
+  }, [])
 
   // Every update stores identity slots, so reordering alternatives never repaints them.
   // The updater form runs against the latest project, not the caller's render-time copy.
@@ -94,22 +115,22 @@ export default function Designer() {
     if (!p || p === base) return
     const next = ensureIdentitySlots(p)
     if (base && base.id === next.id && base.design && base.design.uploadedAt !== next.design?.uploadedAt) {
-      archiveDesign(base.id, base.design)
-      setHistory(designHistory(base.id))
+      storeHistory(base.id, archiveDesign(base.id, base.design, fullHistory(base.id)))
     }
     latest.current = next
     setProjectState(next)
-  }, [])
+  }, [fullHistory, storeHistory])
 
   // Switching studies replaces the project wholesale, with no design archiving.
   const switchTo = useCallback((p: Project) => {
     const next = ensureIdentitySlots(p)
     latest.current = next
     setProjectState(next)
-    setHistory(designHistory(next.id))
+    setHistory(fullHistory(next.id))
+    setHistoryNote(null)
     setStudies(listStudies())
     setLanding(null)
-  }, [])
+  }, [fullHistory])
 
   const getProject = useCallback(() => latest.current as Project, [])
 
@@ -155,6 +176,18 @@ export default function Designer() {
     setStudies(listStudies())
   }, [project])
 
+  // Leaving the page would lose edits that failed to save, or earlier designs held only in this tab.
+  const unsaved = !!saveError || overflow.current.size > 0
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
+
   // The page is client-rendered, so the metadata title template never sees the project name.
   // The landing screen and the workspace each open at the top, whatever the other was scrolled to.
   useEffect(() => {
@@ -177,13 +210,13 @@ export default function Designer() {
         setSaveError(r.error)
         return r.error
       }
-      if (opts?.history?.length) setDesignHistory(p.id, opts.history)
       switchTo(p)
+      if (opts?.history?.length) storeHistory(p.id, setDesignHistory(p.id, opts.history))
       setLibraryOpen(false)
       setNewOpen(false)
       return null
     },
-    [switchTo],
+    [switchTo, storeHistory],
   )
 
   const library = useMemo<LibraryApi>(
@@ -192,6 +225,8 @@ export default function Designer() {
       unreadable,
       activeId: project?.id ?? '',
       history,
+      unsavedHistory: project ? overflow.current.get(project.id)?.length ?? 0 : 0,
+      historyNote,
       saveError,
       openLibrary: () => setLibraryOpen(true),
       goHome: () => setLanding('return'),
@@ -210,7 +245,7 @@ export default function Designer() {
       },
       duplicate: (id) => {
         const src = id === latest.current?.id ? latest.current : readStudy(id)
-        if (src) create(duplicateStudy(src), { history: designHistory(id) })
+        if (src) create(duplicateStudy(src), { history: fullHistory(id) })
       },
       remove: (id) => {
         deleteStudy(id)
@@ -224,11 +259,17 @@ export default function Designer() {
       importFile: async (file) => {
         const parsed = parseProjectFile(await file.text(), listStudies().map((m) => m.id))
         if (!parsed.ok) return parsed.error
-        return create({ ...parsed.project, updatedAt: new Date().toISOString() }, { history: parsed.designHistory })
+        const err = create({ ...parsed.project, updatedAt: new Date().toISOString() }, { history: parsed.designHistory })
+        if (!err && parsed.droppedHistory > 0) {
+          setHistoryNote(
+            `${parsed.droppedHistory} earlier design${parsed.droppedHistory === 1 ? '' : 's'} in the file could not be read and ${parsed.droppedHistory === 1 ? 'was' : 'were'} left out.`,
+          )
+        }
+        return err
       },
       download: (id) => {
         const p = id === latest.current?.id ? latest.current : readStudy(id)
-        if (p) downloadText(projectFileName(p), serializeProjectFile(p, designHistory(id)))
+        if (p) downloadText(projectFileName(p), serializeProjectFile(p, fullHistory(id)))
       },
       downloadRaw: (id) => {
         const raw = readStudyRaw(id)
@@ -238,20 +279,18 @@ export default function Designer() {
         const id = latest.current?.id
         if (!id) return
         setProject((p) => ({ ...p, design: entry.design, updatedAt: new Date().toISOString() }))
-        const rest = designHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
-        setDesignHistory(id, rest)
-        setHistory(rest)
+        const rest = fullHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
+        storeHistory(id, setDesignHistory(id, rest))
       },
       forgetDesign: (entry) => {
         const id = latest.current?.id
         if (!id) return
-        const rest = designHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
-        setDesignHistory(id, rest)
-        setHistory(rest)
+        const rest = fullHistory(id).filter((a) => a.design.uploadedAt !== entry.design.uploadedAt)
+        storeHistory(id, setDesignHistory(id, rest))
       },
       current: getProject,
     }),
-    [studies, unreadable, project?.id, history, saveError, create, switchTo, refreshStudies, setProject, getProject],
+    [studies, unreadable, project?.id, history, historyNote, saveError, create, switchTo, refreshStudies, setProject, getProject, fullHistory, storeHistory],
   )
 
   // The example already in the library if there is one, otherwise a fresh copy. When the browser
@@ -280,6 +319,7 @@ export default function Designer() {
         ) : !project || !deferred ? (
           <ShellSkeleton />
         ) : (
+        <StudyErrorBoundary key={project.id} studyId={project.id} studyName={project.name}>
         <DesignHealthProvider project={deferred}>
           <ProgressProvider project={project}>
           <AppShell project={project} header={<ProjectHeader project={project} />}>
@@ -298,6 +338,7 @@ export default function Designer() {
           </AppShell>
           </ProgressProvider>
         </DesignHealthProvider>
+        </StudyErrorBoundary>
         )}
         <NewStudyDialog open={newOpen} onClose={() => setNewOpen(false)} />
       </LatestProjectProvider>

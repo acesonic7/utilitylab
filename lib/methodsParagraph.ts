@@ -246,7 +246,8 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
       w.t(` ${s(n, one, many)}`)
     }
     const checks: (() => void)[] = []
-    if (cfg.dominance.enabled) {
+    // Dominance isn't judged in labeled experiments (see validation.ts dominance).
+    if (cfg.dominance.enabled && project.experimentType !== 'labeled') {
       const dominatedTasks = health.byTask.filter((t) => t.dominated.length > 0)
       const dominated = dominatedTasks.reduce((sum, t) => sum + t.dominated.length, 0)
       checks.push(() => {

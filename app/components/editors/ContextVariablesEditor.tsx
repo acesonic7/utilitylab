@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { Project, ContextVariable, Level, AttributeType } from '@/lib/schema'
 import { createContextVariable, createContextLevel } from '@/lib/defaults'
+import { changeContextType } from '@/lib/typeChange'
 import { Button, Field, IconButton, Input, Select, cx } from '../ui'
 import { ChevronRight, Plus, XMark } from '../Icons'
 
@@ -197,7 +198,7 @@ function ContextCard({
                 <Select
                   id={id}
                   value={cv.type}
-                  onChange={(e) => onUpdate({ type: e.target.value as AttributeType })}
+                  onChange={(e) => onUpdate(changeContextType(cv, e.target.value as AttributeType))}
                 >
                   {TYPES.map((t) => (
                     <option key={t.value} value={t.value}>

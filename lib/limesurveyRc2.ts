@@ -75,7 +75,17 @@ export type Rc2Failure =
 
 export type Rc2Result = { ok: true; result: unknown } | { ok: false; failure: Rc2Failure }
 
-function classifyStatus(text: string): Rc2Failure {
+// Documented RC2 error codes (https://api.limesurvey.org/classes/remotecontrol_handle.html); older
+// servers send only a status text, so that is matched as a fallback.
+const ERROR_CODES: Record<string, Rc2Failure> = {
+  ERR_INVALID_SESSION: 'session',
+  ERR_NO_PERMISSION: 'permission',
+  ERR_INVALID_SURVEY: 'survey',
+  ERR_SURVEY_ACTIVE: 'active',
+}
+
+function classifyStatus(text: string, errorCode?: unknown): Rc2Failure {
+  if (typeof errorCode === 'string' && ERROR_CODES[errorCode]) return ERROR_CODES[errorCode]
   const t = text.toLowerCase()
   if (/user ?name or password/.test(t)) return 'credentials'
   if (/login attempts/.test(t)) return 'locked-out'
@@ -98,12 +108,18 @@ export function readRc2Reply(body: unknown): Rc2Result {
     return { ok: false, failure: classifyStatus(typeof error === 'string' ? error : JSON.stringify(error)) }
   }
   if (result && typeof result === 'object' && 'status' in result) {
-    const status = (result as { status: unknown }).status
+    const { status, error_code } = result as { status: unknown; error_code?: unknown }
     if (typeof status === 'string' && status !== 'OK') {
-      return { ok: false, failure: classifyStatus(status) }
+      return { ok: false, failure: classifyStatus(status, error_code) }
     }
   }
   return { ok: true, result: result ?? null }
+}
+
+/** An id from add_group or import_question: documented as the new id, sent as a number or a numeric string. */
+export function rc2Id(result: unknown): number | null {
+  const n = typeof result === 'number' ? result : typeof result === 'string' && /^\d+$/.test(result) ? Number(result) : NaN
+  return Number.isInteger(n) && n > 0 ? n : null
 }
 
 export type Rc2Client = {

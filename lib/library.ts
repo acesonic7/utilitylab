@@ -3,6 +3,7 @@ import { travelModeExample } from './example'
 import { createAttribute } from './defaults'
 import { newAlternative } from './altRoles'
 import { slugify, uniqueSlug } from './slug'
+import { checkDesign, checkProject } from './projectShape'
 
 // Browser storage for the study library. Each study lives under its own key so a
 // failed or corrupt write can only ever affect that one study.
@@ -82,18 +83,15 @@ export function newStudyId(): string {
 }
 
 export function isProjectShape(p: unknown): p is Project {
-  if (!p || typeof p !== 'object') return false
-  const o = p as Record<string, unknown>
-  return (
-    typeof o.id === 'string' &&
-    typeof o.name === 'string' &&
-    Array.isArray(o.alternatives) &&
-    Array.isArray(o.attributes) &&
-    (o.experimentType === 'labeled' || o.experimentType === 'unlabeled') &&
-    typeof o.builder === 'object' &&
-    o.builder !== null &&
-    'design' in o
-  )
+  return checkProject(p).ok
+}
+
+// A stored study, checked and with its optional fields filled in; null when the app can't read it.
+function readChecked(key: string): Project | null {
+  const r = readJson<unknown>(key)
+  if (!r.ok || r.value === null) return null
+  const c = checkProject(r.value)
+  return c.ok ? c.project : null
 }
 
 function metaOf(p: Project, fromExample?: boolean): StudyMeta {
@@ -235,9 +233,9 @@ export function loadLibrary(): LibraryState {
 
   if (!studies) {
     studies = scanStudies()
-    const legacy = readJson<unknown>(LEGACY_KEY)
-    if (legacy.ok && isProjectShape(legacy.value) && !studies.some((m) => m.id === (legacy.value as Project).id)) {
-      const p = legacy.value
+    const legacy = readChecked(LEGACY_KEY)
+    if (legacy && !studies.some((m) => m.id === legacy.id)) {
+      const p = legacy
       if (write(studyKey(p.id), p).ok) {
         studies.push(metaOf(p))
         s?.removeItem(LEGACY_KEY)
@@ -253,10 +251,10 @@ export function loadLibrary(): LibraryState {
   ]
   let found: Project | null = null
   for (const m of order) {
-    const r = readJson<unknown>(studyKey(m.id))
-    if (r.ok && isProjectShape(r.value)) {
+    const p = readChecked(studyKey(m.id))
+    if (p) {
       if (!found) {
-        found = r.value
+        found = p
         s?.setItem(ACTIVE_KEY, m.id)
       }
     } else unreadable.push(m.id)
@@ -279,8 +277,8 @@ function scanStudies(): StudyMeta[] {
   for (let i = 0; i < s.length; i++) {
     const key = s.key(i)
     if (!key?.startsWith('utilitylab:study:')) continue
-    const r = readJson<unknown>(key)
-    if (r.ok && isProjectShape(r.value)) out.push(metaOf(r.value))
+    const p = readChecked(key)
+    if (p) out.push(metaOf(p))
   }
   return out
 }
@@ -319,15 +317,14 @@ export function addStudy(p: Project, opts?: { fromExample?: boolean }): SaveResu
 }
 
 export function readStudy(id: string): Project | null {
-  const r = readJson<unknown>(studyKey(id))
-  return r.ok && isProjectShape(r.value) ? r.value : null
+  return readChecked(studyKey(id))
 }
 
 export function openStudy(id: string): Project | null {
-  const r = readJson<unknown>(studyKey(id))
-  if (!r.ok || !isProjectShape(r.value)) return null
+  const p = readChecked(studyKey(id))
+  if (!p) return null
   storage()?.setItem(ACTIVE_KEY, id)
-  return r.value
+  return p
 }
 
 export function readStudyRaw(id: string): string | null {
@@ -357,15 +354,48 @@ export function duplicateStudy(p: Project): Project {
 }
 
 export function designHistory(studyId: string): ArchivedDesign[] {
-  const r = readJson<ArchivedDesign[]>(historyKey(studyId))
-  return r.ok && Array.isArray(r.value) ? r.value : []
+  const r = readJson<unknown>(historyKey(studyId))
+  return r.ok && Array.isArray(r.value) ? checkHistory(r.value).kept : []
 }
 
-export function setDesignHistory(studyId: string, list: ArchivedDesign[]): SaveResult {
-  return write(historyKey(studyId), list.slice(0, DESIGN_HISTORY_LIMIT))
+/** The readable entries of an earlier-designs list, and how many were not. */
+export function checkHistory(list: unknown[]): { kept: ArchivedDesign[]; dropped: number } {
+  const kept: ArchivedDesign[] = []
+  for (const a of list) {
+    try {
+      const o = a as { archivedAt?: unknown; design?: unknown }
+      kept.push({ archivedAt: typeof o?.archivedAt === 'string' ? o.archivedAt : new Date(0).toISOString(), design: checkDesign(o?.design) })
+    } catch {}
+  }
+  return { kept, dropped: list.length - kept.length }
 }
 
-export function archiveDesign(studyId: string, design: Design): SaveResult {
-  const list = designHistory(studyId).filter((a) => a.design.uploadedAt !== design.uploadedAt)
+export type HistoryWrite = {
+  /** Entries now in browser storage, newest first. */
+  stored: ArchivedDesign[]
+  /** Entries that did not fit: the caller must keep them (in memory, in a download) or lose them. */
+  overflow: ArchivedDesign[]
+  error: string | null
+}
+
+// Stores as many of the newest entries as fit; the rest come back as overflow instead of the
+// whole write failing and every earlier design being lost.
+export function setDesignHistory(studyId: string, list: ArchivedDesign[]): HistoryWrite {
+  const wanted = list.slice(0, DESIGN_HISTORY_LIMIT)
+  let error: string | null = null
+  for (let n = wanted.length; n > 0; n--) {
+    const r = write(historyKey(studyId), wanted.slice(0, n))
+    if (r.ok) return { stored: wanted.slice(0, n), overflow: wanted.slice(n), error }
+    error = r.error
+  }
+  // Nothing fits (or nothing to store): drop the key so a stale list can't come back.
+  try {
+    storage()?.removeItem(historyKey(studyId))
+  } catch {}
+  return { stored: [], overflow: wanted, error: wanted.length ? error ?? 'The browser refused to save.' : null }
+}
+
+export function archiveDesign(studyId: string, design: Design, current = designHistory(studyId)): HistoryWrite {
+  const list = current.filter((a) => a.design.uploadedAt !== design.uploadedAt)
   return setDesignHistory(studyId, [{ archivedAt: new Date().toISOString(), design }, ...list])
 }
