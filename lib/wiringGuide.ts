@@ -1,8 +1,37 @@
-import type { Project, Attribute } from './schema'
+import type { Project, Attribute, Level } from './schema'
+import { levelDisplayText, pivotDeltaText } from './format'
+
+// Syntax follows the platforms' documentation:
+// - Qualtrics Math Operations: $e{ ... } with space-separated items, piped fields written without
+//   ${ }, round(x, 2) for decimals; plain piped text followed by "+10" is printed, not computed.
+//   https://www.qualtrics.com/support/survey-platform/survey-module/editing-questions/piped-text/math-operations/
+// - LimeSurvey ExpressionScript: {CODE.NAOK + 10}, no whitespace just inside the braces,
+//   round(val, precision). Question codes start with a letter and are alphanumeric only.
+//   https://www.limesurvey.org/manual/ExpressionScript_-_Presentation
+//   https://www.limesurvey.org/manual/Questions_-_introduction
+
+// Letters and digits only, starting with a letter: valid as a LimeSurvey question code and as a
+// Qualtrics embedded-data field name. Kept to 20 characters, within LimeSurvey's code length.
+function cleanToken(raw: string): string {
+  const alnum = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  const lettered = /^[A-Z]/.test(alnum) ? alnum : `REF${alnum}`
+  return lettered.slice(0, 20)
+}
+
+/** The default token: from the attribute's name, so a renamed attribute doesn't keep REF_NEW_ATTRIBUTE. */
+export function defaultToken(attr: Attribute): string {
+  return cleanToken(`REF${attr.name || attr.id}`)
+}
 
 export function tokenFor(attr: Attribute): string {
-  if (attr.pivot?.referenceToken) return attr.pivot.referenceToken
-  return `REF_${attr.id.toUpperCase()}`
+  const custom = attr.pivot?.referenceToken?.trim()
+  return custom ? cleanToken(custom) : defaultToken(attr)
+}
+
+/** The token as the user typed it, when it had to be changed to be valid on both platforms. */
+function tokenChanged(attr: Attribute): string | null {
+  const custom = attr.pivot?.referenceToken?.trim()
+  return custom && cleanToken(custom) !== custom ? custom : null
 }
 
 export function pivotedAttributes(project: Project): Attribute[] {
@@ -19,135 +48,135 @@ export function hasPivotedAttributes(project: Project): boolean {
   return pivotedAttributes(project).length > 0
 }
 
-function levelLabel(attr: Attribute, value: number): string {
-  if (attr.pivot?.mode === 'relative') return `${value}×`
-  if (attr.pivot?.mode === 'absolute') {
-    return value >= 0 ? `+${value}` : String(value)
+type Platform = 'qualtrics' | 'limesurvey'
+
+// The arithmetic on the respondent's reference value, as each platform writes it.
+function expressionFor(attr: Attribute, value: number, platform: Platform): string {
+  const token = tokenFor(attr)
+  const relative = attr.pivot?.mode === 'relative'
+  if (platform === 'qualtrics') {
+    const field = `e://Field/${token}`
+    if (relative) return value === 1 ? `\${${field}}` : `$e{ round( ${field} * ${value} , 2 ) }`
+    if (value === 0) return `\${${field}}`
+    return `$e{ ${field} ${value > 0 ? '+' : '-'} ${Math.abs(value)} }`
   }
-  return String(value)
+  const ref = `${token}.NAOK`
+  if (relative) return value === 1 ? `{${ref}}` : `{round(${ref} * ${value}, 2)}`
+  if (value === 0) return `{${ref}}`
+  return `{${ref} ${value > 0 ? '+' : '-'} ${Math.abs(value)}}`
 }
 
-function expressionFor(attr: Attribute, value: number, platform: 'qualtrics' | 'limesurvey'): string {
-  const token = tokenFor(attr)
-  if (attr.pivot?.mode === 'relative') {
-    return platform === 'qualtrics'
-      ? `\${e://Field/${token}}*${value}`
-      : `{${token}*${value}}`
+// The replacement for a whole cell: the expression wrapped in the same currency symbol, unit and
+// bracketed change the exported cell shows, so only the number becomes per-respondent.
+function cellReplacement(attr: Attribute, level: Level, platform: Platform): string {
+  const expr = expressionFor(attr, Number(level.value), platform)
+  const unit = attr.unit
+  let text: string
+  if (attr.displayFormat === 'currency') {
+    const symbol = unit === 'EUR' ? '€' : unit === 'USD' ? '$' : unit === 'GBP' ? '£' : null
+    text = symbol ? `${symbol}${expr}` : unit ? `${expr} ${unit}` : expr
+  } else if (attr.displayFormat === 'percent') text = `${expr}%`
+  else if (attr.displayFormat === 'duration') text = `${expr} ${unit || 'min'}`
+  else text = unit ? `${expr} ${unit}` : expr
+  const delta = pivotDeltaText(level, attr.pivot)
+  return delta && delta !== 'no change' ? `${text} (${delta})` : text
+}
+
+// Every level set of the attribute: the default levels, and each alternative's own levels.
+function levelSets(project: Project, attr: Attribute): { heading: string | null; levels: Level[] }[] {
+  const sets: { heading: string | null; levels: Level[] }[] = [{ heading: null, levels: attr.levels }]
+  for (const [altId, levels] of Object.entries(attr.levelsByAlternative ?? {})) {
+    if (!levels.length) continue
+    const alt = project.alternatives.find((a) => a.id === altId)
+    sets.push({ heading: `${alt?.label ?? altId} (its own levels)`, levels })
   }
-  // absolute
-  if (platform === 'qualtrics') {
-    if (value === 0) return `\${e://Field/${token}}`
-    return value > 0
-      ? `\${e://Field/${token}}+${value}`
-      : `\${e://Field/${token}}${value}` // negative value already starts with -
+  if (sets.length > 1) sets[0].heading = 'Other alternatives'
+  return sets
+}
+
+function substitutionTable(project: Project, attr: Attribute, platform: Platform, lines: string[]) {
+  for (const set of levelSets(project, attr)) {
+    if (set.heading) lines.push(`   *${set.heading}*`, ``)
+    lines.push(`   | Exported cell shows | Replace it with |`, `   |---|---|`)
+    for (const lvl of set.levels) {
+      lines.push(`   | \`${levelDisplayText(attr, lvl)}\` | \`${cellReplacement(attr, lvl, platform)}\` |`)
+    }
+    lines.push(``)
   }
-  if (value === 0) return `{${token}}`
-  return value > 0 ? `{${token}+${value}}` : `{${token}${value}}`
+}
+
+function modeText(attr: Attribute): string {
+  return attr.pivot!.mode === 'absolute' ? 'reference + offset' : 'reference × multiplier'
 }
 
 export function buildWiringGuide(project: Project): string {
   const pivoted = pivotedAttributes(project)
   if (pivoted.length === 0) {
-    return `# Pivot wiring guide\n\nProject: **${project.name}** (\`${project.slug}\`)\n\nThis design has no pivoted attributes — nothing to wire up.\n`
+    return `# Pivot wiring guide\n\nProject: **${project.name}** (\`${project.slug}\`)\n\nThis design has no pivoted attributes, so there is nothing to wire up.\n`
   }
 
   const lines: string[] = []
-  lines.push(`# Pivot wiring guide`)
-  lines.push(``)
-  lines.push(`Project: **${project.name}** (\`${project.slug}\`)`)
-  lines.push(``)
+  lines.push(`# Pivot wiring guide`, ``)
+  lines.push(`Project: **${project.name}** (\`${project.slug}\`)`, ``)
   lines.push(
-    `This survey uses **pivoted attributes** — values that should be calculated relative to each respondent's own answers. The exported choice tasks currently show *resolved values* using a fixed preview reference. To deploy with per-respondent values, follow the platform-specific steps below.`,
+    `This study has **pivoted attributes**: their levels are meant to be calculated from each respondent's own value (for example their usual travel time). The exported files show every respondent the same values, calculated from a fixed preview reference. To pivot on each respondent's own value, follow the steps for your platform below. Each table lists the exact text a cell shows in the exported survey and what to put in its place.`,
+    ``,
   )
-  lines.push(``)
 
-  // Table of pivoted attributes
-  lines.push(`## Pivoted attributes`)
-  lines.push(``)
-  lines.push(`| Attribute | Token | Mode | Preview reference | Levels |`)
-  lines.push(`|---|---|---|---|---|`)
+  lines.push(`## Pivoted attributes`, ``)
+  lines.push(`| Attribute | Token | Calculation | Preview reference |`, `|---|---|---|---|`)
   for (const attr of pivoted) {
-    const token = tokenFor(attr)
-    const mode = attr.pivot!.mode === 'absolute' ? 'delta' : 'multiplier'
     const ref = attr.pivot!.previewReference!
-    const refStr = `${ref}${attr.unit ? ' ' + attr.unit : ''}`
-    const levelStr = attr.levels.map((l) => levelLabel(attr, Number(l.value))).join(', ')
-    lines.push(`| ${attr.name} | \`${token}\` | ${mode} | ${refStr} | ${levelStr} |`)
+    lines.push(`| ${attr.name} | \`${tokenFor(attr)}\` | ${modeText(attr)} | ${ref}${attr.unit ? ' ' + attr.unit : ''} |`)
   }
   lines.push(``)
-
-  // Qualtrics
-  lines.push(`## Qualtrics`)
-  lines.push(``)
-  lines.push(
-    `1. **Add a reference question early in the survey** capturing each respondent's value (one per pivoted attribute). Use a numeric or text-entry question.`,
-  )
-  lines.push(`2. **Set Embedded Data via Survey Flow** to store each response under the token name:`)
-  for (const attr of pivoted) {
-    const token = tokenFor(attr)
-    lines.push(`   - \`${token} = \${q://QID_X/ChoiceTextEntryValue}\` (replace \`QID_X\` with the actual question ID)`)
-  }
-  lines.push(``)
-  lines.push(
-    `3. **Replace preview values in each choice task** with piped expressions. For every pivoted attribute, find the table cells showing its preview values and substitute as follows:`,
-  )
-  lines.push(``)
-  for (const attr of pivoted) {
-    const token = tokenFor(attr)
-    lines.push(`   ### ${attr.name} (\`${token}\`)`)
-    lines.push(``)
-    for (const lvl of attr.levels) {
-      const v = Number(lvl.value)
-      const lbl = levelLabel(attr, v)
-      const expr = expressionFor(attr, v, 'qualtrics')
-      lines.push(`   - Cells showing **${lbl}** → \`${expr}\``)
+  const changed = pivoted.filter(tokenChanged)
+  if (changed.length) {
+    for (const attr of changed) {
+      lines.push(
+        `> The token \`${tokenChanged(attr)}\` set for ${attr.name} is written \`${tokenFor(attr)}\` here: LimeSurvey question codes may contain only letters and digits and must start with a letter.`,
+      )
     }
     lines.push(``)
   }
 
-  // LimeSurvey
-  lines.push(`## LimeSurvey`)
-  lines.push(``)
+  lines.push(`## Qualtrics`, ``)
   lines.push(
-    `1. **Add a reference question early in the survey** with question code matching the token name (e.g. \`${tokenFor(pivoted[0])}\`). Numeric type recommended.`,
+    `1. **Ask for each reference value early in the survey**, in a text-entry question with numeric validation (one per pivoted attribute).`,
+    `2. **In Survey flow, add an Embedded Data element** before the choice tasks that sets each token to the respondent's answer:`,
   )
-  lines.push(
-    `2. **Use Expression Manager** to substitute the preview values in each choice task with expressions:`,
-  )
-  lines.push(``)
   for (const attr of pivoted) {
-    const token = tokenFor(attr)
-    lines.push(`   ### ${attr.name} (\`${token}\`)`)
-    lines.push(``)
-    for (const lvl of attr.levels) {
-      const v = Number(lvl.value)
-      const lbl = levelLabel(attr, v)
-      const expr = expressionFor(attr, v, 'limesurvey')
-      lines.push(`   - Cells showing **${lbl}** → \`${expr}\``)
-    }
-    lines.push(``)
+    lines.push(`   - \`${tokenFor(attr)}\` = \`\${q://QID_X/ChoiceTextEntryValue}\` (replace \`QID_X\` with the reference question's ID)`)
   }
-
-  // Currency note
-  const hasCurrency = pivoted.some((a) => a.displayFormat === 'currency')
-  if (hasCurrency) {
-    lines.push(`## Currency formatting`)
-    lines.push(``)
-    lines.push(
-      `Both platforms render piped numbers without a currency symbol. Prefix the symbol manually in the question text:`,
-    )
-    lines.push(``)
-    lines.push(`- Qualtrics: \`€\${e://Field/REF_COST}*0.5\``)
-    lines.push(`- LimeSurvey: \`€{REF_COST*0.5}\` (or use \`number_format()\` for fixed decimals)`)
-    lines.push(``)
-  }
-
-  lines.push(`---`)
-  lines.push(``)
   lines.push(
-    `Generated by UtilityLab. Update the export and regenerate this guide whenever the design changes.`,
+    `3. **Replace the cells in every choice task.** Open each question's HTML view (not the rich-text editor, which can insert non-breaking spaces that stop the calculation) and replace each cell's text as below. Keep the spaces inside \`$e{ … }\`: Qualtrics requires them.`,
+    ``,
   )
-  lines.push(``)
+  for (const attr of pivoted) {
+    lines.push(`   ### ${attr.name} (\`${tokenFor(attr)}\`)`, ``)
+    substitutionTable(project, attr, 'qualtrics', lines)
+  }
+  lines.push(`4. **Test with the survey link, not only Preview.** Qualtrics notes that some piped math works in preview but not in the live survey if written incorrectly.`, ``)
+
+  lines.push(`## LimeSurvey`, ``)
+  lines.push(
+    `1. **Ask for each reference value early in the survey** in a Numerical input question whose question code is the token (for example \`${tokenFor(pivoted[0])}\`).`,
+    `2. **Replace the cells in every choice task** with ExpressionScript, as below. Don't put spaces just inside the curly braces, or LimeSurvey shows the text instead of calculating it. \`.NAOK\` keeps the value available whatever the question's relevance.`,
+    ``,
+  )
+  for (const attr of pivoted) {
+    lines.push(`   ### ${attr.name} (\`${tokenFor(attr)}\`)`, ``)
+    substitutionTable(project, attr, 'limesurvey', lines)
+  }
+
+  lines.push(`## Values to check`, ``)
+  lines.push(
+    `Neither platform limits the result. A respondent with a small reference value and a negative offset can see a negative or zero time or price. Add validation to the reference questions (a minimum value) so every calculated level stays plausible.`,
+    ``,
+  )
+
+  lines.push(`---`, ``)
+  lines.push(`Generated by UtilityLab. Download the guide again whenever the design or the levels change.`, ``)
   return lines.join('\n')
 }
 

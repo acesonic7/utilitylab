@@ -4,17 +4,19 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { Attribute, Design, GenerationMethod, Project, ScoreWeights } from '@/lib/schema'
 import {
   defaultScoreWeights,
-  generateDesign,
   suggestNumTasks,
+  type GenerationProgress,
   type GenerationResult,
 } from '@/lib/designGenerator'
 import { identificationIssue, paramCount, priorLabels } from '@/lib/dOptimal'
 import { analyzeSample, type SampleStatus } from '@/lib/sampleSize'
+import { plural } from '@/lib/text'
 import { ArrowDown, ChevronRight, Refresh } from './Icons'
 import { Button, Field, Gauge, Input, NumberInput, Tag, cx, type GaugeBand, type TagTone } from './ui'
 import { Disclosure, inkButtonClass } from './design/controls'
 import { useLatestProject, type SetProject } from './ProjectStore'
 import { useWorkspaceActions } from './Workspace'
+import { runGeneration, type GenerationRun } from './design/runGeneration'
 
 const METHODS: { value: GenerationMethod; title: string; subtitle: string }[] = [
   { value: 'd-optimal', title: 'D-optimal', subtitle: 'Maximizes statistical efficiency for an MNL model' },
@@ -35,6 +37,8 @@ type LastRun = {
   method: GenerationMethod
   iterations: number
   multistarts: number
+  /** The structure had enabled constraints when this ran. */
+  hadConstraints: boolean
 }
 
 type Settings = {
@@ -73,6 +77,11 @@ export default function DesignGenerator({
   const { numTasks, numBlocks, method, iterations, multistarts, seed, weights } = settings
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [progress, setProgress] = useState<GenerationProgress | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
+  const running = useRef<GenerationRun | null>(null)
+  // A search left running when the panel closes is stopped, not left to finish unseen.
+  useEffect(() => () => running.current?.cancel(), [])
   const [lastRun, setLastRun] = useState<LastRun | null>(null)
   const generatedRows = useRef<unknown>(null)
   const seededFrom = useRef(project.design)
@@ -104,50 +113,76 @@ export default function DesignGenerator({
   const perRespondent = (numTasks / Math.max(1, numBlocks)).toFixed(numTasks % numBlocks === 0 ? 0 : 1)
 
   const { goTo } = useWorkspaceActions()
-  const blocker = method === 'd-optimal' ? identificationIssue(project, numTasks) : null
+  const blockIssue =
+    numBlocks < 1
+      ? 'Set at least 1 block.'
+      : numBlocks > numTasks
+        ? `${plural(numBlocks, 'block')} need at least ${numBlocks} choice tasks, one per block, or some respondents would see none. Add choice tasks or use fewer blocks.`
+        : null
+  const blocker = blockIssue ?? (method === 'd-optimal' ? identificationIssue(project, numTasks) : null)
 
   const run = () => {
-    if (identificationIssue(getProject(), numTasks) && method === 'd-optimal') return
+    if (running.current) return
+    if (blockIssue || (identificationIssue(getProject(), numTasks) && method === 'd-optimal')) return
     setGenerating(true)
-    // Defer to next frame so the spinner shows
-    requestAnimationFrame(() => {
-      const seedValue = seed.trim() === '' ? undefined : Number(seed)
-      // The latest structure, not this view's deferred copy.
-      const result = generateDesign(getProject(), {
-        numTasks,
-        numBlocks,
-        method,
-        iterations,
-        multistarts,
-        seed: seedValue,
-        weights,
-      })
-      const design = {
-        source: 'generated' as const,
-        uploadedAt: new Date().toISOString(),
-        numTasks: result.rows.length,
-        numBlocks: result.numBlocks,
-        rows: result.rows,
-        mapping: [],
-        rawHeaders: [],
-        generationParams: {
-          method,
-          iterations: method === 'balanced' ? iterations : undefined,
-          multistarts: method === 'd-optimal' ? multistarts : undefined,
-          seed: result.seed,
-          scoreWeights: weights,
-        },
-      }
-      if (design.rows.length === 0) {
+    setProgress(null)
+    setRunError(null)
+    const seedValue = seed.trim() === '' ? undefined : Number(seed)
+    // The latest structure, not this view's deferred copy; the run works on that snapshot.
+    const snapshot = getProject()
+    const run = runGeneration(
+      snapshot,
+      { numTasks, numBlocks, method, iterations, multistarts, seed: seedValue, weights },
+      setProgress,
+    )
+    running.current = run
+    run.promise.then(
+      (result) => {
+        running.current = null
+        setProgress(null)
+        if (!result) return setGenerating(false) // cancelled
+        finish(result, snapshot)
+      },
+      (err: Error) => {
+        running.current = null
+        setProgress(null)
         setGenerating(false)
-        return
-      }
-      generatedRows.current = result.rows
-      edited.current = false
-      setProject((p) => ({ ...p, design, updatedAt: new Date().toISOString() }))
-      setLastRun({ result, method, iterations, multistarts })
+        setRunError(err.message)
+      },
+    )
+  }
+
+  const cancel = () => {
+    running.current?.cancel()
+  }
+
+  // Settings come from the render that started the run, so they match the result.
+  const finish = (result: GenerationResult, snapshot: Project) => {
+    const design = {
+      source: 'generated' as const,
+      uploadedAt: new Date().toISOString(),
+      numTasks: result.rows.length,
+      numBlocks: result.numBlocks,
+      rows: result.rows,
+      mapping: [],
+      rawHeaders: [],
+      generationParams: {
+        method,
+        iterations: method === 'balanced' ? iterations : undefined,
+        multistarts: method === 'd-optimal' ? multistarts : undefined,
+        seed: result.seed,
+        scoreWeights: weights,
+      },
+    }
+    if (design.rows.length === 0) {
       setGenerating(false)
-    })
+      return
+    }
+    generatedRows.current = result.rows
+    edited.current = false
+    setProject((p) => ({ ...p, design, updatedAt: new Date().toISOString() }))
+    setLastRun({ result, method, iterations, multistarts, hadConstraints: (snapshot.constraints ?? []).some((c) => c.enabled) })
+    setGenerating(false)
   }
 
   const seedField = (hint: string) => (
@@ -205,7 +240,7 @@ export default function DesignGenerator({
                     type="button"
                     aria-pressed={on}
                     onClick={() => setNumTasks(n)}
-                    title={`${n} choice tasks (multiple of attribute level counts — perfect balance possible)`}
+                    title={`${n} choice tasks: a multiple of every attribute's level count, so each level can appear equally often. A D-optimal design may still favour the extreme levels of numeric attributes.`}
                     className={cx(
                       'focus-ring tnum inline-flex h-6 items-center rounded-pill border px-2 text-12 font-medium leading-none transition-colors',
                       on ? 'border-ink bg-ink text-paper' : 'border-line-2 bg-surface text-ink-2 hover:border-ink-4 hover:text-ink',
@@ -226,7 +261,7 @@ export default function DesignGenerator({
               required
               integer
               min={1}
-              max={20}
+              max={Math.max(1, Math.min(20, numTasks))}
               emptyBehavior={0}
               value={numBlocks}
               onValueChange={setNumBlocks}
@@ -375,13 +410,39 @@ export default function DesignGenerator({
           )}
           {generating ? 'Generating…' : project.design ? 'Re-generate' : 'Generate design'}
         </button>
+        {generating && (
+          <Button onClick={cancel} aria-label="Cancel the search">
+            Cancel
+          </Button>
+        )}
         <div role="status" className="min-w-0 flex-1">
           {blocker ? (
             <p id={`${uid}-blocker`} className="text-13 font-medium text-risk">
               {blocker}
             </p>
+          ) : generating ? (
+            <div className="min-w-0">
+              <div
+                role="progressbar"
+                aria-label="Search progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress ? Math.round(progress.fraction * 100) : undefined}
+                className="h-1.5 w-full max-w-sm overflow-hidden rounded-pill bg-surface-3"
+              >
+                <div
+                  className="h-full rounded-pill bg-ink transition-[width] duration-200 motion-reduce:transition-none"
+                  style={{ width: `${Math.max(2, Math.round((progress?.fraction ?? 0) * 100))}%` }}
+                />
+              </div>
+              <p className="tnum mt-1.5 truncate text-12 text-ink-3">
+                {progress ? progress.label : 'Starting the search…'} · the page stays usable while it runs
+              </p>
+            </div>
+          ) : runError ? (
+            <p className="text-13 font-medium text-risk">The search stopped: {runError}</p>
           ) : (
-            lastRun && !generating && <ResultSummary run={lastRun} />
+            lastRun && <ResultSummary run={lastRun} />
           )}
         </div>
         {lastRun && !generating && !blocker && (
@@ -408,6 +469,15 @@ function ResultSummary({ run }: { run: LastRun }) {
             {' '}
             · D-error <span className="tnum font-mono text-ink">{result.dError.toFixed(4)}</span>
           </>
+        )}
+        {method === 'd-optimal' && result.dError !== undefined && !Number.isFinite(result.dError) && (
+          <span className="font-medium text-risk">
+            {' '}
+            · no design found whose parameters can all be estimated.{' '}
+            {run.hadConstraints
+              ? 'The constraints may force two attributes to change together; loosen them or add choice tasks.'
+              : 'Add choice tasks or levels.'}
+          </span>
         )}{' '}
         · score <span className="tnum font-mono text-ink">{result.score.toFixed(1)}</span>
         {' '}· seed <span className="tnum font-mono text-ink">{result.seed}</span>
@@ -427,14 +497,17 @@ function ResultSummary({ run }: { run: LastRun }) {
         {result.constraintFailures !== undefined && result.constraintFailures > 0 && (
           <span className="font-medium text-caution">
             {' '}
-            · {result.constraintFailures} constraint retr
-            {result.constraintFailures !== 1 ? 'ies' : 'y'} hit max
+            · {plural(result.constraintFailures, 'choice task')} still{' '}
+            {result.constraintFailures === 1 ? 'breaks' : 'break'} a constraint; the constraints may rule out
+            every level for an alternative
           </span>
         )}
       </p>
       <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-12 text-ink-3">
         <span>
-          Balance <span className="tnum text-ink-2">{m.maxBalanceDeviationPct.toFixed(1)}%</span>
+          <span title="The largest gap between how often a level appears and its ideal count. 0% is perfectly balanced.">
+            Level imbalance <span className="tnum text-ink-2">{m.maxBalanceDeviationPct.toFixed(1)}%</span>
+          </span>
         </span>
         <span>
           Correlation <span className="tnum text-ink-2">{m.maxAbsCorrelation.toFixed(2)}</span>
@@ -494,9 +567,11 @@ function PriorsPanel({
       onToggle={() => setOpen(!open)}
     >
       <p className="text-12 text-ink-3">
-        Expected coefficients per parameter. Leave at 0 if unknown — the search then optimizes for
-        designs robust under any β. Effects coding: the first level of each categorical attribute is
-        the reference.
+        Expected coefficients on the utility scale. Numeric attributes take one coefficient per unit of
+        their value (for example per minute); categorical and boolean attributes are dummy coded against
+        their first level. Leave them at 0 if unknown: the design is then efficient for the case where
+        every coefficient is zero, which is a starting point, not a design that suits any β. Enter
+        estimates from a pilot or the literature when you have them.
       </p>
       <div className="mt-3 divide-y divide-line">
         {project.attributes.map((attr) => (
@@ -674,9 +749,10 @@ function obsBands(value: number): GaugeBand[] {
 }
 
 const STATUS: Record<Exclude<SampleStatus, 'unset'>, { tone: TagTone; label: string }> = {
-  good: { tone: 'ok', label: 'Sufficient power' },
+  // A rule of thumb on observations per parameter, not a power analysis, so the labels say so.
+  good: { tone: 'ok', label: 'Enough observations' },
   borderline: { tone: 'caution', label: 'Borderline' },
-  low: { tone: 'risk', label: 'Insufficient power' },
+  low: { tone: 'risk', label: 'Too few observations' },
 }
 
 function SampleStatusBadge({ status }: { status: SampleStatus }) {

@@ -6,7 +6,7 @@ import { buildPriorVector, computeDError, paramLayout } from '@/lib/dOptimal'
 import { formatDay } from '@/lib/formatDate'
 import { DESIGN_HISTORY_LIMIT, type ArchivedDesign } from '@/lib/library'
 import { Button, Panel } from '../ui'
-import { ChevronDown, ChevronRight, Refresh, Trash } from '../Icons'
+import { ChevronDown, ChevronRight, Download, Refresh, Trash } from '../Icons'
 import { useLibrary } from '../library/LibraryContext'
 
 const METHOD: Record<string, string> = { 'd-optimal': 'D-optimal', balanced: 'Balanced search', random: 'Random' }
@@ -32,14 +32,33 @@ function dError(project: Project, d: Design): string {
 }
 
 export function DesignHistory({ project }: { project: Project }) {
-  const { history, restoreDesign, forgetDesign } = useLibrary()
+  const { history, restoreDesign, forgetDesign, unsavedHistory, historyNote, download, activeId } = useLibrary()
   const [open, setOpen] = useState(false)
   const errors = useMemo(
     () => (open ? history.map((h) => dError(project, h.design)) : []),
     [open, history, project],
   )
 
-  if (!history.length) return null
+  const notice =
+    unsavedHistory > 0 ? (
+      <div role="alert" className="mt-4 flex flex-col gap-3 rounded-card border border-risk/30 bg-risk-bg px-4 py-3 sm:flex-row sm:items-center">
+        <p className="min-w-0 flex-1 text-13 text-ink-2">
+          <span className="font-semibold text-risk">Browser storage is full.</span>{' '}
+          {unsavedHistory === 1 ? '1 earlier design is' : `${unsavedHistory} earlier designs are`} kept only until you
+          close this tab. Download the project to keep {unsavedHistory === 1 ? 'it' : 'them'}, then delete studies you no
+          longer need to free space.
+        </p>
+        <Button size="sm" icon={<Download />} className="shrink-0 self-start sm:self-center" onClick={() => download(activeId)}>
+          Download project
+        </Button>
+      </div>
+    ) : historyNote ? (
+      <p role="status" className="mt-4 rounded-card bg-surface-2 px-4 py-3 text-13 text-ink-2 shadow-hairline">
+        {historyNote}
+      </p>
+    ) : null
+
+  if (!history.length) return notice
 
   const restore = (h: ArchivedDesign) => {
     const msg = project.design
@@ -49,6 +68,8 @@ export function DesignHistory({ project }: { project: Project }) {
   }
 
   return (
+    <>
+    {notice}
     <Panel className="mt-4">
       <button
         type="button"
@@ -104,5 +125,6 @@ export function DesignHistory({ project }: { project: Project }) {
         </div>
       )}
     </Panel>
+    </>
   )
 }

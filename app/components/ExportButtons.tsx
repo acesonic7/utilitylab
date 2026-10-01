@@ -3,7 +3,7 @@
 import { Fragment, forwardRef, useState, type ButtonHTMLAttributes } from 'react'
 import type { Project } from '@/lib/schema'
 import { exportTxt, exportQsf } from '@/lib/qualtricsExport'
-import { exportSawtoothCsv } from '@/lib/sawtoothExport'
+import { exportSawtoothCsv, sawtoothColumns } from '@/lib/sawtoothExport'
 import { buildSurveyLss } from '@/lib/limesurveyExport'
 import { buildWiringGuide, hasPivotedAttributes, pivotedAttributes, tokenFor } from '@/lib/wiringGuide'
 import { joinNames, listSeparator } from '@/lib/text'
@@ -138,11 +138,22 @@ export default function ExportButtons({
       <PlatformCard
         name="Sawtooth"
         tag="Beta"
-        description="Design CSV for Sawtooth Lighthouse Studio’s CBC exercise. Opt-out alternatives are left out; Lighthouse adds “None” through an exercise setting."
+        description="Design CSV for Sawtooth Lighthouse Studio’s CBC exercise. Opt-out alternatives are left out; Lighthouse adds “None” through an exercise setting. Context variables can’t be imported this way and are left out."
         howTo={
           <>
-            Import: <Path>CBC exercise → Design tab → Import Design</Path>. Configure attributes and
-            levels in Lighthouse first; level codes are 1-indexed positions.
+            Import: <Path>CBC exercise → Design tab → Import Design</Path>. First set up these attributes in
+            Lighthouse, in this order and with levels in this order (level codes count from 1; 0 means not
+            shown for that concept):
+            <ol className="mt-1.5 list-decimal space-y-0.5 pl-5">
+              {sawtoothColumns(project).map((c, i) => (
+                <li key={i}>
+                  <span className="font-medium text-ink-2">{c.name}</span>: {c.levels.join(', ')}
+                </li>
+              ))}
+            </ol>
+            {project.experimentType === 'labeled' && (
+              <p className="mt-1.5">Make “Alternative” the primary attribute and the others conditional on it.</p>
+            )}
           </>
         }
         error={errors.sawtooth}

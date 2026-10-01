@@ -1,4 +1,4 @@
-import type { Project, Attribute, Level, ValidationConfig } from './schema'
+import type { Project, Attribute, Alternative, DesignRow, Level, ValidationConfig } from './schema'
 import { findLevelInAttr } from './levelLookup'
 
 export const defaultValidationConfig: ValidationConfig = {
@@ -36,9 +36,45 @@ export function getLevel(attr: Attribute, levelId: string | undefined): Level | 
   return findLevelInAttr(attr, levelId)
 }
 
+// Numeric: the value. Boolean: 1 for true, 0 for false, so "higher is better" means true is
+// better whatever order the levels are listed in. Categorical: the level's position.
 export function getScalar(attr: Attribute, level: Level): number {
   if (attr.type === 'numeric') return Number(level.value)
+  if (attr.type === 'boolean') {
+    const v = level.value
+    return v === true || v === 1 || (typeof v === 'string' && /^(true|yes|1)$/i.test(v.trim())) ? 1 : 0
+  }
   return level.position
+}
+
+/**
+ * The attributes compared, when A dominates B in this choice task: at least as good on
+ * every attribute shown for either, and better on one. Null when it doesn't, or when that can't be
+ * judged: an attribute that differs has no preference direction, an attribute is shown for only
+ * one of them, or the experiment is labeled (the labels themselves carry utility).
+ */
+export function dominance(project: Project, row: DesignRow, A: Alternative, B: Alternative): string[] | null {
+  if (project.experimentType === 'labeled') return null
+  const compared: string[] = []
+  let better = false
+  for (const attr of project.attributes) {
+    const onA = appliesToAlt(attr, A.id)
+    const onB = appliesToAlt(attr, B.id)
+    if (!onA && !onB) continue
+    if (onA !== onB) return null
+    const lA = getLevel(attr, row.cells[cellKey(A.id, attr.id)])
+    const lB = getLevel(attr, row.cells[cellKey(B.id, attr.id)])
+    if (!lA || !lB) return null
+    compared.push(attr.id)
+    const sA = getScalar(attr, lA)
+    const sB = getScalar(attr, lB)
+    if (sA === sB) continue
+    const dir = attr.preferenceDirection ?? 'none'
+    if (dir === 'none') return null
+    if (dir === 'higher' ? sA < sB : sA > sB) return null
+    better = true
+  }
+  return better ? compared : null
 }
 
 export function resolveValidationConfig(
@@ -75,40 +111,14 @@ export function validate(project: Project, override?: Partial<ValidationConfig>)
 function checkDominance(project: Project): Finding[] {
   const findings: Finding[] = []
   const alts = project.alternatives.filter((a) => !a.isOptOut)
-  const directional = project.attributes.filter(
-    (a) => a.preferenceDirection && a.preferenceDirection !== 'none',
-  )
   for (const row of project.design?.rows ?? []) {
     for (let i = 0; i < alts.length; i++) {
       for (let j = 0; j < alts.length; j++) {
         if (i === j) continue
         const A = alts[i]
         const B = alts[j]
-        const common = directional.filter(
-          (attr) => appliesToAlt(attr, A.id) && appliesToAlt(attr, B.id),
-        )
-        if (common.length === 0) continue
-        let allAtLeast = true
-        let strictBetter = false
-        for (const attr of common) {
-          const lA = getLevel(attr, row.cells[cellKey(A.id, attr.id)])
-          const lB = getLevel(attr, row.cells[cellKey(B.id, attr.id)])
-          if (!lA || !lB) {
-            allAtLeast = false
-            break
-          }
-          const sA = getScalar(attr, lA)
-          const sB = getScalar(attr, lB)
-          const dir = attr.preferenceDirection!
-          const aBetter = dir === 'higher' ? sA > sB : sA < sB
-          const aWorse = dir === 'higher' ? sA < sB : sA > sB
-          if (aWorse) {
-            allAtLeast = false
-            break
-          }
-          if (aBetter) strictBetter = true
-        }
-        if (allAtLeast && strictBetter) {
+        const common = dominance(project, row, A, B)
+        if (common) {
           findings.push({
             check: 'dominance',
             severity: 'warning',
@@ -117,7 +127,7 @@ function checkDominance(project: Project): Finding[] {
               taskId: row.taskId,
               dominantAltId: A.id,
               dominatedAltId: B.id,
-              attributesCompared: common.map((a) => a.id),
+              attributesCompared: common,
             },
           })
         }

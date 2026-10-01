@@ -56,7 +56,7 @@ export const travelModeExample: Project = {
       pivot: {
         mode: 'relative',
         previewReference: 4.0,
-        referenceToken: 'REF_COST',
+        referenceToken: 'REFCOST',
       },
       levels: [
         { id: 'cost_1', value: 0.5, position: 0 },

@@ -8,6 +8,7 @@ import { Upload } from '../Icons'
 import DesignSource, { DESIGN_PANEL_IDS, type DesignSourceMode } from '../DesignSource'
 import { DesignMatrix } from '../design/DesignMatrix'
 import { DesignHistory } from '../design/DesignHistory'
+import { DesignFitNotice } from '../design/DesignFitNotice'
 import { NextStep } from '../shell/NextStep'
 import { useDesignPanel, useWorkspaceActions } from '../Workspace'
 
@@ -77,6 +78,8 @@ export default function DesignSection({
       />
 
       <DesignSource project={project} setProject={setProject} open={open} onClose={close} />
+
+      {hasRows && <DesignFitNotice context="design" />}
 
       {hasRows ? (
         <DesignMatrix project={project} onClear={clear} />

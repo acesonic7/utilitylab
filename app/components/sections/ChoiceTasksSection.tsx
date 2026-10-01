@@ -6,6 +6,7 @@ import { useWorkspaceActions } from '../Workspace'
 import { Button, EmptyState, SectionHeader } from '../ui'
 import { ChoiceTaskViewer } from '../choice-tasks/ChoiceTaskViewer'
 import { NextStep } from '../shell/NextStep'
+import { DesignFitNotice } from '../design/DesignFitNotice'
 
 export default function ChoiceTasksSection({
   project,
@@ -30,6 +31,7 @@ export default function ChoiceTasksSection({
         title="Choice tasks"
         lede="Each choice task as respondents will see it. Switch on the analyst lens to overlay level codes and findings."
       />
+      {hasRows && <DesignFitNotice context="use" />}
       {!hasRows ? (
         <EmptyState
           title="No choice tasks yet"

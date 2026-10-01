@@ -1,5 +1,6 @@
 import type { Project } from './schema'
-import { isProjectShape, newStudyId, type ArchivedDesign } from './library'
+import { checkHistory, newStudyId, type ArchivedDesign } from './library'
+import { checkProject } from './projectShape'
 
 export const PROJECT_FILE_FORMAT = 'utilitylab.project'
 export const PROJECT_FILE_VERSION = 1
@@ -13,7 +14,7 @@ type ProjectFileV1 = {
 }
 
 export type ParsedProjectFile =
-  | { ok: true; project: Project; designHistory: ArchivedDesign[] }
+  | { ok: true; project: Project; designHistory: ArchivedDesign[]; /** Earlier designs that could not be read. */ droppedHistory: number }
   | { ok: false; error: string }
 
 // LimeSurvey usernames are personal; the password is never stored in the first place.
@@ -48,21 +49,26 @@ export function parseProjectFile(text: string, takenIds: string[] = []): ParsedP
     return { ok: false, error: 'This file is not valid JSON.' }
   }
   let project: unknown = data
-  let history: ArchivedDesign[] = []
+  let history: unknown[] = []
   if (data && typeof data === 'object' && (data as { format?: unknown }).format === PROJECT_FILE_FORMAT) {
     const f = data as Partial<ProjectFileV1> & { version?: unknown }
     if (typeof f.version !== 'number' || f.version > PROJECT_FILE_VERSION) {
       return { ok: false, error: 'This project file was made by a newer version of UtilityLab.' }
     }
     project = f.project
-    history = Array.isArray(f.designHistory) ? f.designHistory.filter((a) => a && a.design) : []
+    history = Array.isArray(f.designHistory) ? f.designHistory : []
   }
-  if (!isProjectShape(project)) {
+  if (!project || typeof project !== 'object') {
     return { ok: false, error: 'This file does not contain a UtilityLab study.' }
   }
-  const p = project as Project
+  const checked = checkProject(project)
+  if (!checked.ok) {
+    return { ok: false, error: `This file can't be opened as a UtilityLab study: ${checked.error.charAt(0).toLowerCase()}${checked.error.slice(1)}` }
+  }
+  const p = checked.project
   const id = !p.id || takenIds.includes(p.id) ? newStudyId() : p.id
-  return { ok: true, project: { ...p, id }, designHistory: history }
+  const { kept, dropped } = checkHistory(history)
+  return { ok: true, project: { ...p, id }, designHistory: kept, droppedHistory: dropped }
 }
 
 export function downloadText(filename: string, text: string, type = 'application/json') {

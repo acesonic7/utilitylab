@@ -6,6 +6,8 @@ import type { Project } from '@/lib/schema'
 import {
   autoDetectMapping,
   buildDesign,
+  CSV_PARSE_OPTIONS,
+  toParsedCsv,
   generateTemplateCsv,
   validateMappings,
   type ColumnRole,
@@ -26,19 +28,6 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
   cell: 'Cell',
   context: 'Context variable',
   ignore: 'Ignore',
-}
-
-// lib/csvImport words some messages by internal role names and ids; show them in the editor's vocabulary.
-function friendlyMessage(msg: string, project: Project): string {
-  return msg
-    .replace('is set to Cell but missing alternative or attribute', 'is set to Cell but has no alternative or attribute picked')
-    .replace('is set to Context but missing variable', 'is set to Context variable but has no context variable picked')
-    .replace(/ on context "/, ' on context variable "')
-    .replace(/mapped to ([^\s.]+)\.(\S+) —/, (whole, altId: string, attrId: string) => {
-      const alt = project.alternatives.find((a) => a.id === altId)
-      const attr = project.attributes.find((a) => a.id === attrId)
-      return alt && attr ? `mapped to ${alt.label} · ${attr.name} —` : whole
-    })
 }
 
 const MESSAGE = 'flex items-start gap-2.5 rounded-well bg-surface-2 px-3 py-2.5 text-13 text-ink shadow-hairline'
@@ -73,8 +62,7 @@ export default function CsvUpload({
     setParseError(null)
     setFilename(file.name)
     Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
+      ...CSV_PARSE_OPTIONS,
       complete: (res) => {
         if (res.errors.length > 0) {
           setParseError(res.errors[0].message)
@@ -85,8 +73,7 @@ export default function CsvUpload({
           setParseError('CSV has no header row.')
           return
         }
-        const rows = res.data.map((r) => headers.map((h) => String(r[h] ?? '')))
-        const p: ParsedCsv = { headers, rows }
+        const p = toParsedCsv(headers, res.data)
         setParsed(p)
         setMappings(autoDetectMapping(p, getProject()))
       },
@@ -352,12 +339,15 @@ export default function CsvUpload({
                           onChange={(e) => updateMapping(i, { matchMode: e.target.value as MatchMode })}
                           title={
                             m.matchMode === 'index'
-                              ? 'CSV value is the level number (1, 2, 3…)'
-                              : 'CSV value matches a level value directly'
+                              ? 'CSV value is the level number, counted from 1 (1, 2, 3…)'
+                              : m.matchMode === 'index0'
+                                ? 'CSV value is the level number, counted from 0 (0, 1, 2…), as Ngene writes it'
+                                : 'CSV value matches a level value directly'
                           }
                         >
                           <option value="value">Level value</option>
                           <option value="index">Level number</option>
+                          <option value="index0">Level number, from 0</option>
                         </Select>
                       </div>
                     )}
@@ -375,13 +365,13 @@ export default function CsvUpload({
             {validation.errors.map((e, i) => (
               <li key={`e${i}`} className={MESSAGE}>
                 <Tag tone="risk">Error</Tag>
-                <span className="min-w-0 break-words pt-0.5">{friendlyMessage(e, project)}</span>
+                <span className="min-w-0 break-words pt-0.5">{e}</span>
               </li>
             ))}
             {validation.warnings.map((w, i) => (
               <li key={`w${i}`} className={MESSAGE}>
                 <Tag tone="caution">Warning</Tag>
-                <span className="min-w-0 break-words pt-0.5">{friendlyMessage(w, project)}</span>
+                <span className="min-w-0 break-words pt-0.5">{w}</span>
               </li>
             ))}
           </ul>

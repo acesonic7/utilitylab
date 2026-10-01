@@ -12,6 +12,7 @@ import {
 } from '@/lib/diagnosticsView'
 import { useDesignHealth } from '../DesignHealth'
 import { plural } from '@/lib/text'
+import { constraintLabel, constraintProblems } from '@/lib/constraints'
 import { AltGlyph, SeverityPips, Tag, cx } from '../ui'
 import { ArrowIcon, ChevronIcon, FIGURE_IDS, FigureLink, SectionLink } from './bits'
 import { CHECK_LABEL, type CheckKey, type CheckTally, type FilterKey } from './model'
@@ -405,8 +406,30 @@ export function FindingsGroups({
       }
     })
 
+  // Constraints that can never match come first: they look like passes but forbid nothing.
+  const broken: Item[] = constraintProblems(project).map(({ constraint: c, problem }) => ({
+    key: `cb-${c.id}`,
+    node: (
+      <Row
+        wideWho
+        sv={
+          <span className="inline-flex items-center gap-2 text-caution">
+            <span aria-hidden="true">
+              <SeverityPips severity="warning" />
+            </span>
+            <span className="text-12 font-semibold leading-none tracking-[0.02em]">Not checked</span>
+          </span>
+        }
+        who={<span className="font-medium">{constraintLabel(c, project)}</span>}
+        metTone="muted"
+        met={problem}
+        go={<SectionLink section="structure">Fix in Structure</SectionLink>}
+      />
+    ),
+  }))
+
   // Constraints: one row per violated constraint, as before.
-  const constraints: Item[] = violations.groups.map((g) => {
+  const violated: Item[] = violations.groups.map((g) => {
     const first = g.tasks[0]
     return {
       key: `c-${g.constraint.id}`,
@@ -474,12 +497,16 @@ export function FindingsGroups({
       desc:
         dominance.length > 0
           ? `Grouped by choice task · ${plural(dominatedTotal, 'dominated alternative')}`
-          : 'An alternative no better on any common attribute and worse on one',
+          : 'An alternative no better on any attribute and worse on at least one',
       tally: tallies.dominance,
       items: dominance,
-      empty: cfg.dominance.enabled
-        ? 'No alternative is dominated in any choice task.'
-        : 'This check is off for this project.',
+      empty: !cfg.dominance.enabled
+        ? 'This check is off for this project.'
+        : project.experimentType === 'labeled'
+          ? 'Not checked in a labeled experiment: each alternative’s label carries its own appeal, so its attributes alone can’t show that it would never be chosen.'
+          : project.attributes.some((a) => (a.preferenceDirection ?? 'none') === 'none')
+            ? 'No alternative is dominated in any choice task. Attributes without a preference direction count as trade-offs; set their direction in 01 Structure for a complete check.'
+            : 'No alternative is dominated in any choice task.',
     },
     {
       key: 'overlap',
@@ -512,7 +539,7 @@ export function FindingsGroups({
           ? 'No constraints defined'
           : `Forbidden combinations · ${violations.enabled} of ${violations.defined} enabled`,
       tally: tallies.constraints,
-      items: constraints,
+      items: [...broken, ...violated],
       empty:
         violations.defined === 0
           ? 'No constraints defined. Add forbidden combinations in 01 Structure.'

@@ -353,7 +353,7 @@ export function LevelsTable({
       </div>
       {priors && (
         <p className="mt-2 text-12 text-ink-3">
-          Prior β for each level is set against L1, the reference level (effects coding). Leave at 0 if unknown;
+          Prior β for each level is relative to L1, the base level (dummy coding). Leave at 0 if unknown;
           the D-efficient search uses these values.
         </p>
       )}

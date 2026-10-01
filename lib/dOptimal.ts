@@ -1,7 +1,7 @@
 import type { Project, Attribute, DesignRow } from './schema'
 import { cellKey } from './validation'
 import { logDetSPD, zeros, dot } from './linalg'
-import { firstViolation } from './constraints'
+import { firstViolation, rowViolationCount, violatingRows } from './constraints'
 import { findLevelInAttr, getLevelsForAlt } from './levelLookup'
 
 // ── model ───────────────────────────────────────────────────────────────────
@@ -229,10 +229,14 @@ export type DOptimalInput = {
   rng: () => number
   /** Called at each start and after every accepted swap, e.g. to replay the search. The rows change in place, so copy what you keep. */
   onStep?: (rows: DesignRow[], dError: number) => void
+  /** Called per choice task of each pass; fraction is by multistart, the label says where the search is. */
+  onProgress?: (p: { fraction: number; label: string }) => void
 }
 
 export type DOptimalResult = {
   rows: DesignRow[]
+  /** Choice tasks in rows that still break a constraint (the constraints can't all be met). */
+  violatingRows: number
   dError: number
   multistartsRun: number
   totalPasses: number
@@ -311,6 +315,7 @@ function coordinateExchange(
   beta: number[],
   maxPasses: number,
   onStep?: DOptimalInput['onStep'],
+  onRow?: (pass: number, task: number) => void,
 ): { rows: DesignRow[]; dError: number; passes: number } {
   const rows: DesignRow[] = startRows.map((r) => ({ ...r, cells: { ...r.cells } }))
   const constraints = project.constraints
@@ -323,6 +328,7 @@ function coordinateExchange(
     improved = false
     pass++
     for (let t = 0; t < rows.length; t++) {
+      onRow?.(pass, t)
       const row = rows[t]
       for (const alt of project.alternatives) {
         if (alt.isOptOut) continue
@@ -332,18 +338,23 @@ function coordinateExchange(
           const k = cellKey(alt.id, attr.id)
           const currentLevelId = row.cells[k]
           if (!currentLevelId) continue
+          // Candidates rank by the row's constraint violations first, then D-error, so a swap
+          // never adds a violation and a start that breaks a constraint is repaired, not frozen.
+          const curV = useConstraints ? rowViolationCount(row, project, constraints) : 0
+          let bestNewV = curV
           let bestNewD = curD
           let bestNewLevel: string | null = null
           for (const lvl of getLevelsForAlt(attr, alt.id)) {
             if (lvl.id === currentLevelId) continue
             row.cells[k] = lvl.id
-            // Skip swap candidates that introduce a constraint violation
-            if (useConstraints && firstViolation(row, project, constraints)) {
+            const v = useConstraints ? rowViolationCount(row, project, constraints) : 0
+            if (v > bestNewV) {
               row.cells[k] = currentLevelId
               continue
             }
             const newD = computeDError(project, rows, beta, layout)
-            if (newD < bestNewD) {
+            if (v < bestNewV || newD < bestNewD) {
+              bestNewV = v
               bestNewD = newD
               bestNewLevel = lvl.id
             }
@@ -370,19 +381,33 @@ export function dOptimalSearch(project: Project, input: DOptimalInput): DOptimal
 
   let bestRows: DesignRow[] | null = null
   let bestD = Infinity
+  let bestV = Infinity
   let totalPasses = 0
   for (let m = 0; m < M; m++) {
     const start = randomRows(project, input.numTasks, input.numBlocks, input.rng)
-    const r = coordinateExchange(project, start, layout, beta, maxPasses, input.onStep)
+    const onRow = input.onProgress
+      ? (pass: number, t: number) =>
+          input.onProgress!({
+            // Finished starts, plus an estimate within this one: a start usually converges in a
+            // few passes, so assume four and stop short of the next start's share.
+            fraction: (m + Math.min(0.9, (pass - 1 + (t + 1) / start.length) / 4)) / M,
+            label: `Start ${m + 1} of ${M} · pass ${pass} · choice task ${t + 1} of ${start.length}`,
+          })
+      : undefined
+    const r = coordinateExchange(project, start, layout, beta, maxPasses, input.onStep, onRow)
     totalPasses += r.passes
-    // Keep the first start even when nothing is identified, so a run never returns no rows.
-    if (r.dError < bestD || bestRows === null) {
+    // A start that honours the constraints beats any that doesn't, whatever its D-error. Keep the
+    // first start even when nothing is identified, so a run never returns no rows.
+    const v = violatingRows(r.rows, project)
+    if (bestRows === null || v < bestV || (v === bestV && r.dError < bestD)) {
+      bestV = v
       bestD = r.dError
       bestRows = r.rows
     }
   }
   return {
     rows: bestRows ?? [],
+    violatingRows: bestRows ? bestV : 0,
     dError: bestD,
     multistartsRun: M,
     totalPasses,

@@ -59,8 +59,14 @@ export function useSectionStatus(project: Project): Record<SectionId, SectionSta
       marker: null,
     },
     design: {
-      line: shape ? `${plural(shape.tasks, 'choice task')} · ${plural(shape.blocks, 'block')}` : 'No design yet',
-      marker: null,
+      line: !shape
+        ? 'No design yet'
+        : health.fit
+          ? 'Out of date: generate again'
+          : `${plural(shape.tasks, 'choice task')} · ${plural(shape.blocks, 'block')}`,
+      marker: health.fit
+        ? { kind: 'count', tone: 'risk', count: health.fit.affectedRows, label: `${plural(health.fit.affectedRows, 'choice task')} out of date` }
+        : null,
     },
     'choice-tasks': { line: taskLine, marker: null },
     diagnostics: { line: diagLine, marker: diagMarker },

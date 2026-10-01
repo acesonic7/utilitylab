@@ -23,7 +23,7 @@ export function NextStep({ after }: { after: SectionId }) {
   const { goTo } = useWorkspaceActions()
   const progress = useProgress()
   const health = useDesignHealth()
-  const { hasDesign } = progress
+  const { hasDesign, designStale } = progress
 
   let concerns = health.constraintViolations
   for (const c of Object.values(health.counts)) concerns += c.concern
@@ -49,12 +49,19 @@ export function NextStep({ after }: { after: SectionId }) {
               </Button>
             ),
           }
-        : {
-            target: 'design',
-            title: 'Review the design',
-            body: 'Edits to the structure don’t change the design. Generate it again to include them.',
-            action: { label: 'Go to Design', run: () => goTo('design') },
-          }
+        : designStale
+          ? {
+              target: 'design',
+              title: 'The design no longer matches the structure',
+              body: 'Your edits removed or changed levels, attributes or alternatives the design uses. Generate it again to include them.',
+              action: { label: 'Generate again', run: () => goTo('design', { panel: 'generate' }) },
+            }
+          : {
+              target: 'design',
+              title: 'Review the design',
+              body: 'Edits to the structure don’t change the design. Generate it again to include them.',
+              action: { label: 'Go to Design', run: () => goTo('design') },
+            }
   } else if (after === 'design' && hasDesign) {
     bar = {
       target: 'choice-tasks',
@@ -73,8 +80,9 @@ export function NextStep({ after }: { after: SectionId }) {
     bar = {
       target: 'export',
       title: 'Take it to the field',
-      body:
-        concerns > 0
+      body: designStale
+        ? 'The design no longer matches the structure. Generate it again before you download files for your survey platform.'
+        : concerns > 0
           ? `Download for Qualtrics, LimeSurvey or Sawtooth. ${plural(concerns, 'concern')} above ${concerns === 1 ? 'is' : 'are'} still open.`
           : 'Download for Qualtrics, LimeSurvey or Sawtooth, or push the design to a LimeSurvey server.',
       action: { label: 'Go to Export', run: () => goTo('export') },

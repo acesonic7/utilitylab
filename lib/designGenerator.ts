@@ -5,9 +5,10 @@ import type {
   GenerationMethod,
   ScoreWeights,
 } from './schema'
-import { cellKey } from './validation'
+import { cellKey, dominance as dominanceOf } from './validation'
 import { dOptimalSearch } from './dOptimal'
 import { firstViolation } from './constraints'
+import { clampBlocks } from './blocks'
 import { findLevelInAttr, getLevelsForAlt } from './levelLookup'
 
 export const defaultScoreWeights: ScoreWeights = {
@@ -25,7 +26,11 @@ export type GenerateInput = {
   multistarts?: number
   seed?: number
   weights?: ScoreWeights
+  /** Called as the search advances; fraction runs from 0 to 1. Cheap to call often. */
+  onProgress?: (p: GenerationProgress) => void
 }
+
+export type GenerationProgress = { fraction: number; label: string }
 
 export type GenerationResult = {
   rows: DesignRow[]
@@ -40,6 +45,7 @@ export type GenerationResult = {
   iterationsRun: number
   multistartsRun?: number
   dError?: number
+  /** Choice tasks in the design that still break a constraint; set only when there are some. */
   constraintFailures?: number
   // The seed actually used, so the run can be reproduced.
   seed: number
@@ -249,42 +255,12 @@ function computeMetrics(
     }
   }
 
-  // Dominance: count tasks where one alt dominates another
+  // Dominance: the same rule as the Diagnostics check.
   let dominance = 0
-  const directional = project.attributes.filter(
-    (a) => a.preferenceDirection && a.preferenceDirection !== 'none',
-  )
   for (const row of rows) {
-    for (let i = 0; i < altsActive.length; i++) {
-      for (let j = 0; j < altsActive.length; j++) {
-        if (i === j) continue
-        const A = altsActive[i]
-        const B = altsActive[j]
-        const common = directional.filter(
-          (attr) => appliesToAlt(attr, A.id) && appliesToAlt(attr, B.id),
-        )
-        if (common.length === 0) continue
-        let allAtLeast = true
-        let strictBetter = false
-        for (const attr of common) {
-          const lA = row.cells[cellKey(A.id, attr.id)]
-          const lB = row.cells[cellKey(B.id, attr.id)]
-          if (!lA || !lB) {
-            allAtLeast = false
-            break
-          }
-          const sA = levelScalar(attr, lA)
-          const sB = levelScalar(attr, lB)
-          const dir = attr.preferenceDirection!
-          const aWorse = dir === 'higher' ? sA < sB : sA > sB
-          const aBetter = dir === 'higher' ? sA > sB : sA < sB
-          if (aWorse) {
-            allAtLeast = false
-            break
-          }
-          if (aBetter) strictBetter = true
-        }
-        if (allAtLeast && strictBetter) dominance++
+    for (const A of altsActive) {
+      for (const B of altsActive) {
+        if (A !== B && dominanceOf(project, row, A, B)) dominance++
       }
     }
   }
@@ -329,7 +305,10 @@ function compositeScore(
   )
 }
 
-export function generateDesign(project: Project, input: GenerateInput): GenerationResult {
+export function generateDesign(project: Project, request: GenerateInput): GenerationResult {
+  // Never more blocks than choice tasks, or some respondents would get an empty block.
+  const numTasks = Math.max(1, Math.floor(Number.isFinite(request.numTasks) ? request.numTasks : 1))
+  const input = { ...request, numTasks, numBlocks: clampBlocks(request.numBlocks, numTasks) }
   const weights = input.weights ?? defaultScoreWeights
   const seed = input.seed === undefined ? randomSeed() : normalizeSeed(input.seed)
   const rng = makeRng(seed)
@@ -340,6 +319,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       numBlocks: input.numBlocks,
       multistarts: input.multistarts ?? 5,
       rng,
+      onProgress: input.onProgress,
     })
     const metrics = computeMetrics(project, result.rows)
     return {
@@ -350,6 +330,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       iterationsRun: result.totalPasses,
       multistartsRun: result.multistartsRun,
       dError: result.dError,
+      constraintFailures: result.violatingRows > 0 ? result.violatingRows : undefined,
       seed,
     }
   }
@@ -363,7 +344,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
       score: compositeScore(metrics, weights),
       metrics,
       iterationsRun: 1,
-      constraintFailures: failedTasks,
+      constraintFailures: failedTasks > 0 ? failedTasks : undefined,
       seed,
     }
   }
@@ -374,17 +355,19 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
   let bestScore = Infinity
   let bestMetrics: GenerationResult['metrics'] | null = null
   let bestIter = 0
-  let totalFailures = 0
+  let bestFailures = Infinity
   for (let i = 1; i <= k; i++) {
+    input.onProgress?.({ fraction: (i - 1) / k, label: `Candidate ${i} of ${k}` })
     const { rows, failedTasks } = randomRows(project, input.numTasks, input.numBlocks, rng)
-    totalFailures += failedTasks
     const metrics = computeMetrics(project, rows)
     const score = compositeScore(metrics, weights)
-    if (score < bestScore) {
+    // Honouring the constraints comes first; the score only ranks candidates that do equally well.
+    if (failedTasks < bestFailures || (failedTasks === bestFailures && score < bestScore)) {
       bestRows = rows
       bestScore = score
       bestMetrics = metrics
       bestIter = i
+      bestFailures = failedTasks
     }
   }
   return {
@@ -399,7 +382,7 @@ export function generateDesign(project: Project, input: GenerateInput): Generati
         overlapCount: 0,
       },
     iterationsRun: bestIter,
-    constraintFailures: totalFailures > 0 ? totalFailures : undefined,
+    constraintFailures: bestFailures > 0 && Number.isFinite(bestFailures) ? bestFailures : undefined,
     seed,
   }
 }

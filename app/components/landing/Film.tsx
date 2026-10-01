@@ -310,7 +310,12 @@ export function Film({ trace, active }: { trace: SearchTrace; active: boolean })
           <Layer on={step === 3} className="inset-x-0 bottom-0 top-[104px]">
             <div className="grid w-full max-w-[470px] grid-cols-2 gap-2 sm:grid-cols-4">
               <Tile on={step === 3} order={0} label="D-error" value={finalD} />
-              <Tile on={step === 3} order={1} label="Dominance" findings={findings.dominance} />
+              {example.experimentType === 'labeled' ? (
+                // Dominance isn't judged between labeled alternatives; a green 0 would read as a pass.
+                <Tile on={step === 3} order={1} label="Dominance" value="—" note="labeled: not checked" />
+              ) : (
+                <Tile on={step === 3} order={1} label="Dominance" findings={findings.dominance} />
+              )}
               <Tile on={step === 3} order={2} label="Level balance" findings={findings.balance} />
               <Tile on={step === 3} order={3} label="Correlation" findings={findings.correlation} />
             </div>
@@ -379,12 +384,15 @@ function Tile({
   label,
   value,
   findings,
+  note,
 }: {
   on: boolean
   order: number
   label: string
   value?: string
   findings?: number
+  /** Caption under a value; defaults to "zero priors" for the D-error figure. */
+  note?: string
 }) {
   const clear = findings === 0
   return (
@@ -403,7 +411,7 @@ function Tile({
         {value ?? findings}
       </p>
       <p className="text-12 text-ink-3">
-        {findings === undefined ? 'zero priors' : clear ? 'no findings' : findings === 1 ? 'finding' : 'findings'}
+        {findings === undefined ? note ?? 'zero priors' : clear ? 'no findings' : findings === 1 ? 'finding' : 'findings'}
       </p>
     </div>
   )

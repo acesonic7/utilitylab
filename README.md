@@ -34,7 +34,7 @@ The workspace is one page in five steps.
 
 ### 02 Design
 Two sources:
-- **Upload CSV** — drop a design from Ngene/R/etc., auto-detect column → (alternative, attribute) or context-variable mapping, validate values against levels. A template CSV can be downloaded from the current structure.
+- **Upload CSV** — drop a design from Ngene/R/etc. (wide format: one row per choice task), auto-detect column → (alternative, attribute) or context-variable mapping, and match each value to a level by its value, its displayed text (e.g. `€2.00`, `15 min`) or its level number counted from 1 or 0. The design is applied only when every alternative × attribute and context variable has a column and every cell names a level; block labels (0/1, A/B, …) are numbered 1, 2, …. A template CSV can be downloaded from the current structure, and the design matrix's own CSV can be uploaded again.
 - **Generate** — three methods:
   - **D-optimal** — coordinate-exchange search (Meyer & Nachtsheim 1995) with multistarts, minimising the D-error of a multinomial logit (MNL) model: dummy coding, alternative-specific constants for labeled experiments, optional priors per parameter; levels that would violate a constraint are skipped
   - **Balanced search** — best of K random candidates by a composite score (level balance, attribute correlation, dominance, overlap)

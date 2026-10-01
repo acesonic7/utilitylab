@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Project } from '@/lib/schema'
 import { identificationIssue } from '@/lib/dOptimal'
+import { designFit } from '@/lib/designFit'
 import { markReviewed, readReviewed, type ReviewStep } from '@/lib/library'
 import type { SectionId } from '../Workspace'
 import { SECTION_IDS } from './sections'
@@ -15,6 +16,8 @@ export type Progress = {
   next: SectionId | null
   doneCount: number
   hasDesign: boolean
+  /** The design no longer matches the structure (edited after the design was made). */
+  designStale: boolean
   /** Why the structure can't support a design yet, or null. */
   structureIssue: string | null
   markReviewed: (step: ReviewStep) => void
@@ -33,6 +36,10 @@ export function ProgressProvider({ project, children }: { project: Project; chil
     project.attributes.length === 0
       ? 'Add at least one attribute with two or more levels.'
       : identificationIssue(project, Number.MAX_SAFE_INTEGER)
+  const designStale = useMemo(
+    () => designFit(project) !== null,
+    [project.design, project.alternatives, project.attributes, project.contextVariables],
+  )
   const [reviewed, setReviewed] = useState<ReviewStep[]>([])
 
   useEffect(() => {
@@ -48,12 +55,14 @@ export function ProgressProvider({ project, children }: { project: Project; chil
   )
 
   const value = useMemo<Progress>(() => {
+    // A design that no longer fits the structure isn't done, and neither is anything reviewed on it.
+    const usable = hasDesign && !designStale
     const met: Record<SectionId, boolean> = {
       structure: structureIssue === null,
-      design: hasDesign,
-      'choice-tasks': hasDesign && reviewed.includes('choice-tasks'),
-      diagnostics: hasDesign && reviewed.includes('diagnostics'),
-      export: hasDesign && reviewed.includes('export'),
+      design: usable,
+      'choice-tasks': usable && reviewed.includes('choice-tasks'),
+      diagnostics: usable && reviewed.includes('diagnostics'),
+      export: usable && reviewed.includes('export'),
     }
     const next = SECTION_IDS.find((id) => !met[id]) ?? null
     const states = Object.fromEntries(
@@ -64,10 +73,11 @@ export function ProgressProvider({ project, children }: { project: Project; chil
       next,
       doneCount: SECTION_IDS.filter((id) => met[id]).length,
       hasDesign,
+      designStale,
       structureIssue,
       markReviewed: mark,
     }
-  }, [structureIssue, hasDesign, reviewed, mark])
+  }, [structureIssue, hasDesign, designStale, reviewed, mark])
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>
 }

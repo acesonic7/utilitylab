@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server'
 import type { Project } from '@/lib/schema'
 import { blockRelevance, buildBlockAssignmentLsq, buildQuestionLsq } from '@/lib/limesurveyExport'
-import { openRc2, resolveTarget, type Rc2Client, type Rc2Failure, type Rc2Result } from '@/lib/limesurveyRc2'
+import { exportBlocks } from '@/lib/blocks'
+import { openRc2, rc2Id, resolveTarget, type Rc2Client, type Rc2Failure, type Rc2Result } from '@/lib/limesurveyRc2'
 import { PRIVATE_NAME_MESSAGE, checkPushUrl, isSameOriginRequest } from '@/lib/limesurveyTarget'
 
 // Pushes choice tasks to LimeSurvey through RemoteControl 2 (RC2).
@@ -232,7 +233,7 @@ async function push(
   // A hidden equation question (BLK) draws one block per respondent; each block's
   // group is shown only when BLK equals its number. Group names stay neutral in
   // case the survey displays them.
-  const numBlocks = project.design.numBlocks
+  const { rows: designRows, numBlocks } = exportBlocks(project.design)
   const fail = async (error: string) => {
     await release()
     return Response.json({ ok: false, error, log }, { status: 200 })
@@ -241,28 +242,29 @@ async function push(
 
   if (numBlocks > 1) {
     const addAssign = await rpc('add_group', [sessionKey, surveyId, 'Block assignment', ''])
-    if (!addAssign.ok || typeof addAssign.result !== 'number') {
+    const assignGid = addAssign.ok ? rc2Id(addAssign.result) : null
+    if (!assignGid) {
       return fail(`add_group failed for block assignment: ${why(addAssign)}.`)
     }
     const lsq = buildBlockAssignmentLsq(numBlocks)
     const imp = await rpc('import_question', [
       sessionKey,
       surveyId,
-      addAssign.result,
+      assignGid,
       Buffer.from(lsq.xml, 'utf8').toString('base64'),
       'lsq',
     ])
-    if (!imp.ok) return fail(`Could not add the block assignment question: ${why(imp)}.`)
-    log.push(`Created block assignment (gid=${addAssign.result}, question ${lsq.questionCode})`)
+    if (!imp.ok || !rc2Id(imp.result)) return fail(`Could not add the block assignment question: ${why(imp)}.`)
+    log.push(`Created block assignment (gid=${assignGid}, question ${lsq.questionCode})`)
   }
 
   const blockGroupIds: Record<number, number> = {}
   for (let b = 1; b <= numBlocks; b++) {
     const add = await rpc('add_group', [sessionKey, surveyId, 'Choice tasks', ''])
-    if (!add.ok || typeof add.result !== 'number') {
+    const gid = add.ok ? rc2Id(add.result) : null
+    if (!gid) {
       return fail(`add_group failed for block ${b}: ${why(add)}.`)
     }
-    const gid = add.result
     blockGroupIds[b] = gid
     if (numBlocks > 1) {
       const setProps = await rpc('set_group_properties', [
@@ -270,17 +272,22 @@ async function push(
         gid,
         { grelevance: blockRelevance(b) },
       ])
-      if (!setProps.ok) {
-        return fail(`Could not limit group ${gid} to block ${b}: ${why(setProps)}.`)
+      // A field LimeSurvey refuses comes back as { grelevance: false } with no error, and the
+      // group would then show to every respondent.
+      const saved = setProps.ok && (setProps.result as { grelevance?: unknown } | null)?.grelevance === true
+      if (!saved) {
+        return fail(`Could not limit group ${gid} to block ${b}: ${setProps.ok ? 'LimeSurvey did not save the condition' : why(setProps)}.`)
       }
     }
     log.push(`Created group for block ${b} (gid=${gid})`)
   }
 
   // ── 4. push questions ──────────────────────────────────────────────────
-  const total = project.design.rows.length
+  const total = designRows.length
   let questionIndex = 0
-  for (const row of project.design.rows) {
+  let imported = 0
+  const failed: string[] = []
+  for (const row of designRows) {
     if (outOfTime()) {
       log.push('Stopped: out of time')
       return fail(
@@ -290,6 +297,7 @@ async function push(
     const gid = blockGroupIds[row?.block]
     if (!gid) {
       log.push(`(skip) No group for block ${row?.block}`)
+      failed.push(`choice task ${row?.taskId}`)
       continue
     }
     let lsq: ReturnType<typeof buildQuestionLsq>
@@ -300,24 +308,38 @@ async function push(
     }
     const importData = Buffer.from(lsq.xml, 'utf8').toString('base64')
     const add = await rpc('import_question', [sessionKey, surveyId, gid, importData, 'lsq'])
-    if (!add.ok) {
+    // Documented to return the new question's id; anything else means it didn't import.
+    const qid = add.ok ? rc2Id(add.result) : null
+    if (!qid) {
       log.push(
-        `  (failed) ${lsq.questionTitle} (${lsq.questionCode}): ${FAILURE_TEXT[add.failure]}`,
+        `  (failed) ${lsq.questionTitle} (${lsq.questionCode}): ${add.ok ? 'no question id returned' : FAILURE_TEXT[add.failure]}`,
       )
-      // Continue — partial success is more useful than total failure
+      failed.push(`${lsq.questionTitle} (${lsq.questionCode})`)
+      // Carry on, so the log names every choice task that didn't import.
       continue
     }
-    const qid = typeof add.result === 'number' ? ` → qid=${add.result}` : ''
-    log.push(`  ✓ ${lsq.questionTitle} (${lsq.questionCode})${qid}`)
+    imported++
+    log.push(`  ✓ ${lsq.questionTitle} (${lsq.questionCode}) → qid=${qid}`)
   }
 
   // ── 5. release session ─────────────────────────────────────────────────
   await release()
   log.push('Session released')
 
+  // Only a push where every choice task imported is a success; a partial survey must not read as one.
+  if (failed.length > 0) {
+    return Response.json(
+      {
+        ok: false,
+        log,
+        error: `Only ${imported} of ${total} choice tasks were imported into survey ${surveyId}; ${failed.length} failed (see the log). The survey now holds part of the design: remove the new question groups in LimeSurvey and push again, or import the LSS file instead.`,
+      },
+      { status: 200 },
+    )
+  }
   return Response.json({
     ok: true,
     log,
-    message: `Pushed ${project.design.rows.length} choice tasks across ${project.design.numBlocks} block(s) to survey ${surveyId}.`,
+    message: `Pushed all ${imported} choice tasks across ${numBlocks} block${numBlocks === 1 ? '' : 's'} to survey ${surveyId}.`,
   })
 }
