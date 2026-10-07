@@ -373,7 +373,7 @@ export function AttributeDetail({
         </div>
       </div>
 
-      <LevelsTable attribute={attribute} onUpdate={onUpdate} priors={priorColumn} />
+      <LevelsTable attribute={attribute} onUpdate={onUpdate} priors={priorColumn} active={active} />
 
       {isNumeric && <PerAltLevels attribute={attribute} active={active} onUpdate={onUpdate} />}
 

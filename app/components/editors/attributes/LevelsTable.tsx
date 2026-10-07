@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import type { Attribute, Level } from '@/lib/schema'
 import { createLevel } from '@/lib/defaults'
+import type { AltIdentity } from '@/lib/altIdentity'
+import { FillLevels } from './FillLevels'
 import { Button, IconButton, Input, NumberInput, Select, cx } from '../../ui'
 import { CloseIcon, PictureIcon, PlusIcon } from './icons'
 import { COL_HEAD } from './grid'
@@ -254,11 +256,19 @@ export function LevelsTable({
   attribute,
   onUpdate,
   priors,
+  active = [],
 }: {
   attribute: Attribute
   onUpdate: (changes: Partial<Attribute>) => void
   priors: PriorColumn | null
+  active?: AltIdentity[]
 }) {
+  const [filling, setFilling] = useState(false)
+  const fillRef = useRef<HTMLButtonElement>(null)
+  const closeFill = () => {
+    setFilling(false)
+    fillRef.current?.focus()
+  }
   const levels = attribute.levels
   const canRemove = levels.length > 2
   const listRef = useRef<HTMLUListElement>(null)
@@ -345,12 +355,25 @@ export function LevelsTable({
             />
           ))}
         </ul>
-        <div className="px-1.5 py-1.5">
+        <div className="flex flex-wrap gap-1 px-1.5 py-1.5">
           <Button ref={addRef} variant="ghost" size="sm" icon={<PlusIcon />} onClick={addLevel}>
             Add level
           </Button>
+          {attribute.type === 'numeric' && (
+            <Button
+              ref={fillRef}
+              variant="ghost"
+              size="sm"
+              aria-expanded={filling}
+              onClick={() => (filling ? closeFill() : setFilling(true))}
+              className="aria-expanded:bg-surface-3 aria-expanded:text-ink"
+            >
+              Fill levels…
+            </Button>
+          )}
         </div>
       </div>
+      {filling && <FillLevels attribute={attribute} active={active} onUpdate={onUpdate} onClose={closeFill} />}
       {priors && (
         <p className="mt-2 text-12 text-ink-3">
           Prior β for each level is relative to L1, the base level (dummy coding). Leave at 0 if unknown;
