@@ -29,7 +29,7 @@ import { AltGlyph, Button, CopyButton, SeverityPips, cx, useOverflowX } from '..
 const SUB_TH =
   'h-[30px] border-b border-line py-1 align-bottom font-mono text-12 font-normal uppercase leading-[14px] tracking-caps text-ink-3'
 
-const METHOD_LABEL = { random: 'Random', balanced: 'Balanced search', 'd-optimal': 'D-optimal' } as const
+const METHOD_LABEL = { random: 'Random', balanced: 'Balanced search', 'd-optimal': 'D-efficient' } as const
 
 // Sticky key columns: # is 36px wide, Block sits right after it.
 const KEY_1 = 'sticky left-0 z-[1] w-9 min-w-9 bg-surface'

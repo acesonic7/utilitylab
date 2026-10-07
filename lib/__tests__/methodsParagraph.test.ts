@@ -39,10 +39,10 @@ function paragraph(project: Project) {
 }
 
 describe('methods paragraph', () => {
-  it('names the D-optimal search as coordinate exchange and cites it', () => {
+  it('names the D-efficient design and its coordinate-exchange search, and cites it', () => {
     const { text, references } = paragraph(generated('d-optimal'))
     expect(text).toContain(
-      'It was generated in UtilityLab with a coordinate-exchange D-optimal search (Meyer & Nachtsheim, 1995), using 2 random starts and random seed 42. ',
+      'It was generated in UtilityLab as a D-efficient design, by a coordinate-exchange search that minimises the D-error (Meyer & Nachtsheim, 1995), using 2 random starts and random seed 42. ',
     )
     expect(text).not.toMatch(/fed[eo]rov/i)
     expect(references).toEqual([COORDINATE_EXCHANGE_REFERENCE])
@@ -72,5 +72,19 @@ describe('methods paragraph: response requirement', () => {
   it('names a required or optional answer', () => {
     expect(paragraph(withRequirement('require')).text).toContain('An answer was required for every choice task.')
     expect(paragraph(withRequirement('optional')).text).toContain('Answering each choice task was optional.')
+  })
+})
+
+describe('methods paragraph: D-error notation', () => {
+  it('reports a Dz-error with zero priors and a Dp-error with fixed, non-zero priors', () => {
+    expect(paragraph(travelModeExample).text).toContain('with all priors set to zero')
+    expect(paragraph(travelModeExample).text).toContain('Dz-error was')
+    const withPriors = {
+      ...travelModeExample,
+      attributes: travelModeExample.attributes.map((a, i) => (i === 0 ? { ...a, priors: [-0.05] } : a)),
+    }
+    const text = paragraph(withPriors).text
+    expect(text).toContain('with fixed, non-zero priors')
+    expect(text).toContain('Dp-error was')
   })
 })

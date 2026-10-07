@@ -57,7 +57,7 @@ Common in transport, health (plan switching), energy (tariff switching).
 - Per-attribute *reference value* (single number/string, baked in at design time).
 - Levels under pivot mode are interpreted as **deltas** (absolute or multiplicative). Renderer shows resolved values.
 - Only numeric attributes can pivot; categorical/boolean stay absolute.
-- Generators (random / balanced / D-optimal) unchanged — they pick level IDs, resolution happens at render/export time.
+- Generators (random / balanced / D-efficient) unchanged — they pick level IDs, resolution happens at render/export time.
 - Constraints evaluate on level IDs as today.
 
 ### Deferred to v2

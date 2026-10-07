@@ -109,8 +109,8 @@ export function Landing({
               Design a stated choice experiment, from structure to survey
             </h1>
             <p className="mt-4 max-w-[52ch] text-16 leading-6 text-ink-2">
-              Define alternatives, attributes and levels, generate an efficient design, check it, and
-              export choice tasks to Qualtrics, LimeSurvey or Sawtooth.
+              Define alternatives, attributes and levels, generate a D-efficient, balanced or random
+              design, check it, and export choice tasks to Qualtrics, LimeSurvey or Sawtooth.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-2.5">
