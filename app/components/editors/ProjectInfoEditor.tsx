@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { DEFAULT_QUESTION_STEM } from '@/lib/surveyText'
 import type { Project } from '@/lib/schema'
 import { Button, Field, Input, Panel, Textarea } from '../ui'
 import { RequiredMark } from './structure/RequiredMark'
@@ -92,6 +93,29 @@ export default function ProjectInfoEditor({
                 value={project.description ?? ''}
                 placeholder="What is this stated choice experiment about?"
                 onChange={(e) => stamp({ description: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field
+            label="Question text"
+            optional
+            className="md:col-span-2"
+            hint="Asked above every choice task, in the preview and in the Qualtrics and LimeSurvey exports."
+          >
+            {(fid, describedBy) => (
+              <Input
+                id={fid}
+                aria-describedby={describedBy}
+                value={project.builder.labels?.questionStem ?? ''}
+                placeholder={DEFAULT_QUESTION_STEM}
+                onChange={(e) =>
+                  stamp({
+                    builder: {
+                      ...project.builder,
+                      labels: { ...project.builder.labels, questionStem: e.target.value },
+                    },
+                  })
+                }
               />
             )}
           </Field>

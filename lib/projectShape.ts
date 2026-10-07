@@ -238,7 +238,10 @@ export function checkProject(raw: unknown): ProjectCheck {
     let labels: Project['builder']['labels']
     if (b.labels !== undefined && b.labels !== null) {
       const l = obj(b.labels, 'The survey labels')
-      labels = { choiceColumn: optStr(l.choiceColumn, 'The choice column label') }
+      labels = {
+        choiceColumn: optStr(l.choiceColumn, 'The choice column label'),
+        questionStem: optStr(l.questionStem, 'The question text'),
+      }
     }
     const builder: Project['builder'] = {
       ...(b as Partial<Project['builder']>),

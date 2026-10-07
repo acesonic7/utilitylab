@@ -3,7 +3,7 @@ import { appliesToAlt, cellKey } from '@/lib/validation'
 import { formatNumeric, levelDisplayText, pivotDeltaText, resolvePivotValue } from '@/lib/format'
 import { findLevelInAttr, getLevelsForAlt } from '@/lib/levelLookup'
 
-export const QUESTION_STEM = 'Which of these alternatives would you choose?'
+export { questionStem } from '@/lib/surveyText'
 
 export function orderedAlternatives(project: Project): Alternative[] {
   return project.builder.alternativeOrder

@@ -4,6 +4,7 @@ import { levelDisplayText } from './format'
 import { findLevelInAttr } from './levelLookup'
 import { buildTxtCommentBlock } from './wiringGuide'
 import { exportBlocks } from './blocks'
+import { htmlAttr, htmlLine, htmlText, questionStem } from './surveyText'
 
 function getLevel(attr: Attribute, levelId: string | undefined) {
   if (!levelId) return undefined
@@ -18,17 +19,9 @@ function levelText(attr: Attribute, levelId: string | undefined): string {
   return levelDisplayText(attr, getLevel(attr, levelId))
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 function imgTag(url: string | undefined, maxH: number): string {
   if (!url) return ''
-  return `<img src="${escapeHtml(url)}" alt="" style="max-height:${maxH}px;display:block;margin:0 auto 4px auto;" />`
+  return `<img src="${htmlAttr(url)}" alt="" style="max-height:${maxH}px;display:block;margin:0 auto 4px auto;" />`
 }
 
 export function renderTaskAsHtml(project: Project, row: DesignRow): string {
@@ -49,7 +42,7 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
     if (!level) continue
     const text = level.displayValue ?? String(level.value)
     ctxParts.push(
-      `<strong>${escapeHtml(cv.name)}:</strong> ${escapeHtml(text)}`,
+      `<strong>${htmlText(cv.name)}:</strong> ${htmlText(text)}`,
     )
   }
   const preamble = ctxParts.length
@@ -57,7 +50,7 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
     : ''
 
   const headerCells = altOrder
-    .map((a) => `<th>${imgTag(a.imageUrl, 48)}${escapeHtml(a.label)}</th>`)
+    .map((a) => `<th>${imgTag(a.imageUrl, 48)}${htmlText(a.label)}</th>`)
     .join('')
   const headerRow = `<tr><th></th>${headerCells}</tr>`
 
@@ -68,18 +61,19 @@ export function renderTaskAsHtml(project: Project, row: DesignRow): string {
           if (alt.isOptOut || !appliesToAlt(attr, alt.id)) return '<td>—</td>'
           const lid = row.cells[cellKey(alt.id, attr.id)]
           const level = getLevel(attr, lid)
-          return `<td>${imgTag(level?.imageUrl, 40)}${escapeHtml(levelText(attr, lid))}</td>`
+          return `<td>${imgTag(level?.imageUrl, 40)}${htmlText(levelText(attr, lid))}</td>`
         })
         .join('')
       const unitSuffix = project.builder.showUnits && attr.unit ? ` (${attr.unit})` : ''
       const attrIcon = attr.imageUrl
-        ? `<img src="${escapeHtml(attr.imageUrl)}" alt="" style="height:18px;vertical-align:middle;margin-right:6px;" />`
+        ? `<img src="${htmlAttr(attr.imageUrl)}" alt="" style="height:18px;vertical-align:middle;margin-right:6px;" />`
         : ''
-      return `<tr><th>${attrIcon}${escapeHtml(attr.name + unitSuffix)}</th>${cells}</tr>`
+      return `<tr><th>${attrIcon}${htmlText(attr.name + unitSuffix)}</th>${cells}</tr>`
     })
     .join('')
 
-  return `${preamble}<table border="1" cellpadding="6" cellspacing="0"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
+  const stem = `<p style="margin:0 0 0.75em 0;font-weight:600;">${htmlText(questionStem(project))}</p>`
+  return `${preamble}${stem}<table border="1" cellpadding="6" cellspacing="0"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
 }
 
 // === TXT (Qualtrics Advanced Format) ===
@@ -126,7 +120,7 @@ export function exportTxt(project: Project): string {
       lines.push(`[[ID:Q_${b}_${row.taskId}]]`)
       lines.push(renderTaskAsHtml(project, row))
       lines.push('[[Choices]]')
-      for (const alt of altOrder) lines.push(alt.label)
+      for (const alt of altOrder) lines.push(htmlLine(alt.label))
       lines.push('')
     }
   }
@@ -188,7 +182,7 @@ export function exportQsf(project: Project): string {
       const qId = `QID${qIndex++}`
       const choices: Record<string, { Display: string }> = {}
       altOrder.forEach((alt, idx) => {
-        choices[String(idx + 1)] = { Display: alt.label }
+        choices[String(idx + 1)] = { Display: htmlText(alt.label) }
       })
       questions.push({
         SurveyID: surveyId,
