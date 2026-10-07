@@ -21,6 +21,8 @@ import { clientKey, createRateLimiter } from '@/lib/rateLimit'
 // sizes and time are capped, and upstream error text is not passed on.
 
 export const runtime = 'nodejs'
+// Frankfurt, so researchers' credentials and choice tasks are handled in the EU.
+export const preferredRegion = 'fra1'
 export const maxDuration = 60 // seconds; Vercel-friendly
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024

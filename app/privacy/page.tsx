@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         <p>
           <strong className="font-semibold text-ink">Pushing to LimeSurvey (only if you use it).</strong> When you press
           Push or Test connection, your browser sends your LimeSurvey address, username, password and survey ID, and the
-          study’s choice tasks, to a server function run by Vercel in Washington, D.C., USA. The function passes them to
+          study’s choice tasks, to a server function run by Vercel in Frankfurt, Germany (EU). The function passes them to
           your LimeSurvey server, returns the result to you, and then forgets them: UtilityLab does not store or log
           them. To limit abuse, it keeps your network address in the server’s memory for about ten minutes, and never writes it anywhere. If you would rather
           nothing leave your browser, download the LimeSurvey file (LSS) and import it yourself.
