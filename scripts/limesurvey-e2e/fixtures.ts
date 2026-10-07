@@ -14,3 +14,7 @@ writeFileSync(join(out, 'athens.lss'), buildSurveyLss(base))
 writeFileSync(join(out, 'hostile.lss'), buildSurveyLss(hostile))
 writeFileSync(join(out, 'project.json'), JSON.stringify(base))
 writeFileSync(join(out, 'hostile.json'), JSON.stringify(hostile))
+const required = structuredClone(travelModeExample)
+required.builder.responseRequirement = 'require'
+writeFileSync(join(out, 'required.lss'), buildSurveyLss(required))
+writeFileSync(join(out, 'required.json'), JSON.stringify(required))

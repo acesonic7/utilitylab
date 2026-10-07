@@ -6,7 +6,9 @@ survey as 20 simulated respondents and checks, from the exported responses, that
 - every respondent saw exactly one block, recorded as `BLK`;
 - every choice task has its answer texts;
 - labels that look like Expression Manager, Qualtrics or HTML syntax are shown literally;
-- the study's question text is shown.
+- the study's question text is shown;
+- the response requirement arrives intact: "request" (soft mandatory) prompts once and then lets a
+  respondent continue without answering, "require" never lets them through.
 
 It covers the LSS file import and the API push (`/api/limesurvey/push`).
 

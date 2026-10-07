@@ -3,6 +3,7 @@ import { appliesToAlt, resolveValidationConfig, type Report } from './validation
 import { designShape, type TaskDiagnostics } from './diagnostics'
 import { paramLayout } from './dOptimal'
 import { joinNames, listSeparator } from './text'
+import { responseRequirement } from './surveyText'
 
 // A plain-text methods paragraph that states only what is true of the project.
 // Segments marked `mark` are figures derived from the design itself.
@@ -202,9 +203,17 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
       `${num(shape.tasks)} ${s(shape.tasks, 'choice task')} in ${shape.blocks === 1 ? 'a single block' : `${num(shape.blocks)} blocks`}`,
     )
     const { min, max } = shape.perRespondent
-    if (shape.blocks === 1) w.t(`, so each respondent completed all ${num(shape.tasks)}. `)
-    else if (min === max) w.t(`, so each respondent completed ${num(min)} ${s(min, 'choice task')}. `)
-    else w.t(`, so each respondent completed between ${num(min)} and ${num(max)} choice tasks. `)
+    if (shape.blocks === 1) w.t(`, so each respondent was shown all ${num(shape.tasks)}. `)
+    else if (min === max) w.t(`, so each respondent was shown ${num(min)} ${s(min, 'choice task')}. `)
+    else w.t(`, so each respondent was shown between ${num(min)} and ${num(max)} choice tasks. `)
+    const requirement = responseRequirement(project)
+    w.t(
+      requirement === 'require'
+        ? 'An answer was required for every choice task. '
+        : requirement === 'request'
+          ? 'Respondents were prompted to answer every choice task but could skip one after the prompt. '
+          : 'Answering each choice task was optional. ',
+    )
     if (source === 'generated') {
       const generation = generationPhrase(project)
       w.t(generation.text)

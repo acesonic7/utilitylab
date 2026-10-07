@@ -4,7 +4,7 @@ import { levelDisplayText } from './format'
 import { findLevelInAttr } from './levelLookup'
 import { buildTxtCommentBlock } from './wiringGuide'
 import { exportBlocks } from './blocks'
-import { htmlAttr, htmlLine, htmlText, questionStem } from './surveyText'
+import { htmlAttr, htmlLine, htmlText, questionStem, responseRequirement, type ResponseRequirement } from './surveyText'
 
 function getLevel(attr: Attribute, levelId: string | undefined) {
   if (!levelId) return undefined
@@ -93,6 +93,29 @@ export function txtBlockingNotes(numBlocks: number): string {
   ].join('\n')
 }
 
+const REQUIREMENT_NAME = { request: 'Request response', require: 'Force response' } as const
+
+export function txtResponseNotes(requirement: ResponseRequirement): string {
+  if (requirement === 'optional') return ''
+  const name = REQUIREMENT_NAME[requirement]
+  return [
+    '[[Question:DB]]',
+    '[[ID:RESPONSE_NOTES]]',
+    '<h3>⚠ Setup notes — DELETE BEFORE DEPLOYING</h3>',
+    `<p>This study asks respondents to answer every choice task (<strong>${name}</strong>). The TXT import cannot set that, so as imported every choice task is optional.</p>`,
+    `<p>Select all the choice-task questions, open <strong>Response requirements</strong> and choose <strong>${name}</strong>. The QSF file from UtilityLab has this set already.</p>`,
+    '',
+  ].join('\n')
+}
+
+// QSF validation for a single-answer question; matches what Qualtrics writes for each option.
+export function qsfValidation(requirement: ResponseRequirement) {
+  if (requirement === 'require') return { Settings: { ForceResponse: 'ON', ForceResponseType: 'ON', Type: 'None' } }
+  if (requirement === 'request')
+    return { Settings: { ForceResponse: 'RequestResponse', ForceResponseType: 'RequestResponse', Type: 'None' } }
+  return { Settings: { ForceResponse: 'OFF', Type: 'None' } }
+}
+
 export function exportTxt(project: Project): string {
   if (!project.design) throw new Error('Project has no design')
   const { rows, numBlocks } = exportBlocks(project.design)
@@ -104,13 +127,12 @@ export function exportTxt(project: Project): string {
 
   // Advanced Format cannot express survey flow, so blocking and pivot wiring are
   // spelled out in a Setup notes block the researcher deletes after setup.
-  const blockNotes = txtBlockingNotes(numBlocks)
-  const commentBlock = buildTxtCommentBlock(project)
-  if (blockNotes || commentBlock) {
-    lines.push('[[Block:Setup notes]]', '')
-    if (blockNotes) lines.push(blockNotes)
-    if (commentBlock) lines.push(commentBlock)
-  }
+  const notes = [
+    txtBlockingNotes(numBlocks),
+    txtResponseNotes(responseRequirement(project)),
+    buildTxtCommentBlock(project),
+  ].filter(Boolean)
+  if (notes.length) lines.push('[[Block:Setup notes]]', '', ...notes)
 
   for (let b = 1; b <= numBlocks; b++) {
     lines.push(`[[Block:Block ${b}]]`, '')
@@ -200,7 +222,7 @@ export function exportQsf(project: Project): string {
           QuestionDescription: `Choice task ${row.taskId}`,
           Choices: choices,
           ChoiceOrder: altOrder.map((_, i) => String(i + 1)),
-          Validation: { Settings: { ForceResponse: 'OFF', Type: 'None' } },
+          Validation: qsfValidation(responseRequirement(project)),
           Language: [],
           QuestionID: qId,
         },

@@ -1,10 +1,23 @@
 'use client'
 
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import { DEFAULT_QUESTION_STEM } from '@/lib/surveyText'
+import { DEFAULT_QUESTION_STEM, responseRequirement, type ResponseRequirement } from '@/lib/surveyText'
 import type { Project } from '@/lib/schema'
-import { Button, Field, Input, Panel, Textarea } from '../ui'
+import { Button, Field, Input, Panel, Seg, Textarea } from '../ui'
 import { RequiredMark } from './structure/RequiredMark'
+
+const REQUIREMENT_OPTIONS: { value: ResponseRequirement; label: string }[] = [
+  { value: 'optional', label: 'Optional' },
+  { value: 'request', label: 'Request an answer' },
+  { value: 'require', label: 'Require an answer' },
+]
+
+const REQUIREMENT_HINTS: Record<ResponseRequirement, string> = {
+  optional: 'Respondents can move on without choosing. Skipped choice tasks become missing data.',
+  request:
+    'Respondents who skip a choice task are prompted once, then may continue. Keeps missing data low while respecting the right to skip.',
+  require: 'Respondents cannot continue until they choose. Check that your ethics approval allows this.',
+}
 
 // Study details: name, slug, description and the choice row label. The experiment type
 // (Labeled / Unlabeled) sits beside the alternatives, where its effect is shown.
@@ -96,6 +109,19 @@ export default function ProjectInfoEditor({
               />
             )}
           </Field>
+          <div className="md:col-span-2">
+            <p id="response-requirement-label" className="text-13 font-medium text-ink">
+              Answers to choice tasks
+            </p>
+            <Seg
+              ariaLabel="Answers to choice tasks"
+              options={REQUIREMENT_OPTIONS}
+              value={responseRequirement(project)}
+              onChange={(r) => stamp({ builder: { ...project.builder, responseRequirement: r } })}
+              className="mt-1.5 max-w-full flex-wrap"
+            />
+            <p className="mt-1.5 text-12 text-ink-3">{REQUIREMENT_HINTS[responseRequirement(project)]}</p>
+          </div>
           <Field
             label="Question text"
             optional

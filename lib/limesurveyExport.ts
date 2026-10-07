@@ -1,6 +1,6 @@
 import type { Project, DesignRow, Alternative } from './schema'
 import { renderTaskAsHtml } from './qualtricsExport'
-import { htmlText, stripControl } from './surveyText'
+import { htmlText, limesurveyMandatory, responseRequirement, stripControl } from './surveyText'
 import { exportBlocks } from './blocks'
 
 // LimeSurvey export module. Produces:
@@ -59,6 +59,7 @@ type QuestionSpec = {
   order: number
   answers: string[]
   attributes: Attr[]
+  mandatory: 'N' | 'S' | 'Y'
 }
 
 type AnswerSpec = { aid: number; qid: number; code: string; order: number; text: string }
@@ -91,6 +92,7 @@ function choiceTaskSpec(project: Project, row: DesignRow, qid: number, gid: numb
     order,
     answers: activeAlts(project).map((a) => htmlText(a.label)),
     attributes,
+    mandatory: limesurveyMandatory(responseRequirement(project)),
   }
 }
 
@@ -104,6 +106,7 @@ function blockQuestionSpec(numBlocks: number, qid: number, gid: number): Questio
     order: 1,
     answers: [],
     attributes: [{ attribute: 'hidden', value: '1' }],
+    mandatory: 'N',
   }
 }
 
@@ -142,7 +145,7 @@ function questionSections(questions: QuestionSpec[], language: string, withSid: 
       title: escapeXml(q.code),
       preg: '',
       other: 'N',
-      mandatory: 'N',
+      mandatory: q.mandatory,
       question_order: q.order,
       scale_id: 0,
       same_default: 0,
@@ -195,6 +198,8 @@ export type LsqOutput = {
   xml: string
   questionCode: string
   questionTitle: string
+  // Passed to import_question too, which sets the question's mandatory flag itself.
+  mandatory: 'N' | 'S' | 'Y'
 }
 
 export function buildQuestionLsq(
@@ -204,12 +209,12 @@ export function buildQuestionLsq(
   language = 'en',
 ): LsqOutput {
   const q = choiceTaskSpec(project, row, 1, 1, questionIndex + 1)
-  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: `Choice task ${row.taskId}` }
+  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: `Choice task ${row.taskId}`, mandatory: q.mandatory }
 }
 
 export function buildBlockAssignmentLsq(numBlocks: number, language = 'en'): LsqOutput {
   const q = blockQuestionSpec(numBlocks, 1, 1)
-  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: 'Block assignment' }
+  return { xml: lsqDocument(q, language), questionCode: q.code, questionTitle: 'Block assignment', mandatory: q.mandatory }
 }
 
 // ── LSS (full survey, file download) ──────────────────────────────────────

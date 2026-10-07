@@ -60,3 +60,17 @@ describe('methods paragraph', () => {
     expect(paragraph(travelModeExample).references).toEqual([])
   })
 })
+
+describe('methods paragraph: response requirement', () => {
+  const withRequirement = (r: Project['builder']['responseRequirement']) => ({
+    ...travelModeExample,
+    builder: { ...travelModeExample.builder, responseRequirement: r },
+  })
+  it('says respondents were prompted by default', () => {
+    expect(paragraph(travelModeExample).text).toContain('Respondents were prompted to answer every choice task but could skip one after the prompt.')
+  })
+  it('names a required or optional answer', () => {
+    expect(paragraph(withRequirement('require')).text).toContain('An answer was required for every choice task.')
+    expect(paragraph(withRequirement('optional')).text).toContain('Answering each choice task was optional.')
+  })
+})
