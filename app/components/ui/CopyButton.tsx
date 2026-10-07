@@ -38,7 +38,7 @@ export function CopyButton({
   ...rest
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const onClick = async () => {
