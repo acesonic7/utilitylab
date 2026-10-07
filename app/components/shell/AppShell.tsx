@@ -8,6 +8,7 @@ import { APP_VERSION, CreditLink, Rail } from './Rail'
 import { useScrollSpy } from './useScrollSpy'
 import { useReviewOnDwell } from './Progress'
 import { ExampleBanner } from '../library/ExampleBanner'
+import { MovedNotice } from './MovedNotice'
 import { Walkthrough, WalkthroughLink } from './Walkthrough'
 import { LegalLinks } from '../legal/LegalLinks'
 import { FeedbackButton } from '../feedback/Feedback'
@@ -44,6 +45,7 @@ export function AppShell({
   return (
     <div className="min-h-screen">
       <SkipLink />
+      <MovedNotice />
       <TopBar project={project} />
       <MobileNav project={project} current={current} />
       <div className="lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">

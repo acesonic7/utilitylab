@@ -4,6 +4,8 @@
 
 A web-based tool for designing, checking and exporting stated choice experiments (stated-preference / discrete-choice experiments) — connecting the experimental design, its diagnostics and the survey deployment in a single workflow.
 
+**Try it: [www.utilitylab.space](https://www.utilitylab.space)**. Free, open source, nothing to install.
+
 > Made by [Ioannis Tsouros](https://github.com/acesonic7) ([@acesonic7](https://github.com/acesonic7))
 
 ---
@@ -228,7 +230,7 @@ Cite the version DOI when you report results, so readers can reproduce the exact
 
 ## Privacy and terms
 
-The hosted app has no accounts, cookies or analytics; studies stay in the browser, and only the optional LimeSurvey push passes data through a server function. See the [privacy page](https://utilitylab-ten.vercel.app/privacy) and the [terms and disclaimer](https://utilitylab-ten.vercel.app/terms).
+The hosted app has no accounts, cookies or analytics; studies stay in the browser, and only the optional LimeSurvey push passes data through a server function. See the [privacy page](https://www.utilitylab.space/privacy) and the [terms and disclaimer](https://www.utilitylab.space/terms).
 
 ## Contributing and security
 

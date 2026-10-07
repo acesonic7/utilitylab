@@ -8,7 +8,7 @@ Include what you found, how to reproduce it, and what an attacker could do with 
 
 ## What is in scope
 
-- The hosted app at https://utilitylab-ten.vercel.app and this repository.
+- The hosted app at https://www.utilitylab.space and this repository.
 - In particular the LimeSurvey push route (`app/api/limesurvey/push`), which passes a researcher's LimeSurvey credentials to their server and never stores them.
 
 Studies are stored only in the user's browser; the app has no accounts or database.

@@ -113,7 +113,7 @@ export default async function OpengraphImage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: MUTED }} />
-            <span>github.com/acesonic7/utilitylab</span>
+            <span>www.utilitylab.space</span>
           </div>
         </div>
       </div>
