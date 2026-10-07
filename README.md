@@ -220,6 +220,7 @@ Aligned to the Wang, Thorhauge, Walker & Ben-Akiva tradition (MIT/Berkeley discr
 If you use UtilityLab in your research, please cite it. The citation metadata is in [CITATION.cff](CITATION.cff); GitHub's **Cite this repository** button turns it into APA or BibTeX. Each release is archived on Zenodo with its own DOI (see [docs/releasing.md](docs/releasing.md)).
 
 - All versions: [10.5281/zenodo.23054576](https://doi.org/10.5281/zenodo.23054576) (always resolves to the latest release)
+- v1.2.0: [10.5281/zenodo.23215027](https://doi.org/10.5281/zenodo.23215027)
 - v1.1.0: [10.5281/zenodo.23069523](https://doi.org/10.5281/zenodo.23069523)
 - v1.0.0: [10.5281/zenodo.23054577](https://doi.org/10.5281/zenodo.23054577)
 
