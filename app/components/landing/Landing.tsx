@@ -8,6 +8,7 @@ import { ChevronRight, Upload } from '../Icons'
 import { SkipLink } from '../shell/AppShell'
 import { APP_VERSION, CreditLink } from '../shell/Rail'
 import { LegalLinks } from '../legal/LegalLinks'
+import { MovedNotice } from '../shell/MovedNotice'
 import { FeedbackButton } from '../feedback/Feedback'
 import { ThemeToggle } from '../shell/ThemeToggle'
 import { Button, buttonBase, buttonVariants, cx } from '../ui'
@@ -84,6 +85,7 @@ export function Landing({
   return (
     <div className="flex min-h-screen flex-col">
       <SkipLink />
+      <MovedNotice />
       <div className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col px-4 sm:px-8 lg:px-11">
         <header className="flex items-center gap-3.5 pt-6 sm:pt-7">
           <MatrixMark intro={matrix} size={48} />
