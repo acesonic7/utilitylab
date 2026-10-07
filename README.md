@@ -224,6 +224,10 @@ If you use UtilityLab in your research, please cite it. The citation metadata is
 
 Cite the version DOI when you report results, so readers can reproduce the exact design engine you used.
 
+## Contributing and security
+
+Bug reports and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). Please report security problems privately as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

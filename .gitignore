@@ -41,3 +41,6 @@ Thumbs.db
 .claude/worktrees/
 scripts/limesurvey-e2e/out/
 scripts/limesurvey-e2e/__pycache__/
+
+# script output (npm run export / preview)
+/out/

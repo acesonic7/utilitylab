@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Bricolage_Grotesque, Fragment_Mono, Instrument_Sans } from 'next/font/google'
 import './globals.css'
+import { SITE_DESCRIPTION, SITE_URL } from '@/lib/site'
 
 const display = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
@@ -24,8 +25,34 @@ const mono = Fragment_Mono({
 })
 
 export const metadata: Metadata = {
-  title: { default: 'UtilityLab', template: '%s · UtilityLab' },
-  description: 'Stated choice experiment designer',
+  metadataBase: new URL(SITE_URL),
+  title: { default: 'UtilityLab · Stated choice experiment designer', template: '%s · UtilityLab' },
+  description: SITE_DESCRIPTION,
+  applicationName: 'UtilityLab',
+  authors: [{ name: 'Ioannis Tsouros', url: 'https://github.com/acesonic7' }],
+  keywords: [
+    'stated choice experiment',
+    'discrete choice experiment',
+    'stated preference',
+    'experimental design',
+    'D-efficient design',
+    'choice modelling',
+    'Qualtrics',
+    'LimeSurvey',
+  ],
+  openGraph: {
+    type: 'website',
+    siteName: 'UtilityLab',
+    title: 'UtilityLab · Stated choice experiment designer',
+    description: SITE_DESCRIPTION,
+    url: '/',
+    locale: 'en',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'UtilityLab · Stated choice experiment designer',
+    description: SITE_DESCRIPTION,
+  },
 }
 
 // Runs before paint so a stored theme never flashes the other one. Without a stored override the

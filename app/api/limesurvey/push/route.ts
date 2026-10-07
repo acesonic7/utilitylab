@@ -4,6 +4,7 @@ import { blockRelevance, buildBlockAssignmentLsq, buildQuestionLsq } from '@/lib
 import { exportBlocks } from '@/lib/blocks'
 import { openRc2, rc2Id, resolveTarget, type Rc2Client, type Rc2Failure, type Rc2Result } from '@/lib/limesurveyRc2'
 import { PRIVATE_NAME_MESSAGE, checkPushUrl, isSameOriginRequest } from '@/lib/limesurveyTarget'
+import { clientKey, createRateLimiter } from '@/lib/rateLimit'
 
 // Pushes choice tasks to LimeSurvey through RemoteControl 2 (RC2).
 // Endpoint: {LS_URL}/index.php/admin/remotecontrol
@@ -65,6 +66,10 @@ type PushRequest = {
   testOnly?: boolean // if true, just authenticate and return
 }
 
+// Each push makes many calls to the researcher's server; 20 attempts per 10 minutes per client is
+// generous for real use and stops a script from using this route to hammer a LimeSurvey server.
+const limiter = createRateLimiter(20, 10 * 60_000)
+
 function refuse(status: number, error: string) {
   return Response.json({ ok: false, error }, { status })
 }
@@ -98,6 +103,13 @@ export async function POST(req: NextRequest) {
   })
   if (!sameOrigin) {
     return refuse(403, 'This route only accepts requests from the UtilityLab app itself.')
+  }
+  const limited = limiter.check(clientKey(req.headers))
+  if (!limited.ok) {
+    return Response.json(
+      { ok: false, error: `Too many pushes from this connection. Try again in ${Math.ceil(limited.retryAfterSeconds / 60)} min, or download the LSS file instead.` },
+      { status: 429, headers: { 'Retry-After': String(limited.retryAfterSeconds) } },
+    )
   }
   if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
     return refuse(415, 'Invalid JSON request body')

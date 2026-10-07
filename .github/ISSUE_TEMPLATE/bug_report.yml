@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in UtilityLab is wrong or broken
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - Structure (alternatives, attributes, levels)
+        - Design (generate or upload)
+        - Choice tasks preview
+        - Diagnostics
+        - Export to Qualtrics
+        - Export to LimeSurvey
+        - Export to Sawtooth
+        - Methods paragraph
+        - Studies and project files
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Firefox 131 on Windows 11
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: UtilityLab version
+      description: Shown at the bottom of the left rail, e.g. v1.2.0
+  - type: textarea
+    id: project
+    attributes:
+      label: Project file
+      description: Attach a project file (Studies → Download) if you can. Remove anything confidential first.

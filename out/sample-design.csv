@@ -1,9 +1,0 @@
-choice_task,block,car_travel_time,car_cost,car_comfort,pt_travel_time,pt_cost,pt_comfort,pt_service_frequency,bike_travel_time,bike_comfort,walk_travel_time,walk_comfort,weather,purpose
-1,1,30,3,Medium,45,1,High,10,30,Medium,45,Low,Sunny,Commuting
-2,1,15,6,High,30,3,Medium,5,15,Low,30,High,Cloudy,Leisure
-3,1,45,1,Low,15,6,Medium,20,45,High,15,Medium,Rainy,Shopping
-4,1,30,6,High,15,1,Low,5,30,Medium,30,Medium,Sunny,Leisure
-5,2,45,3,Medium,30,6,High,20,15,Low,45,Low,Cloudy,Shopping
-6,2,15,1,Low,45,3,Low,10,45,High,15,High,Rainy,Commuting
-7,2,30,3,High,30,1,Medium,5,15,Medium,30,Low,Sunny,Shopping
-8,2,45,6,Low,15,3,High,20,30,High,45,Medium,Rainy,Commuting
