@@ -1,5 +1,18 @@
 import type { Project } from './schema'
 
+export type ResponseRequirement = NonNullable<Project['builder']['responseRequirement']>
+
+export const DEFAULT_RESPONSE_REQUIREMENT: ResponseRequirement = 'request'
+
+export function responseRequirement(project: Project): ResponseRequirement {
+  return project.builder.responseRequirement ?? DEFAULT_RESPONSE_REQUIREMENT
+}
+
+// LimeSurvey: N = optional, S = soft mandatory (warns, can continue), Y = mandatory.
+export function limesurveyMandatory(r: ResponseRequirement): 'N' | 'S' | 'Y' {
+  return r === 'require' ? 'Y' : r === 'request' ? 'S' : 'N'
+}
+
 export const DEFAULT_QUESTION_STEM = 'Which of these alternatives would you choose?'
 
 export function questionStem(project: Project): string {

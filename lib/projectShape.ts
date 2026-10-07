@@ -251,6 +251,8 @@ export function checkProject(raw: unknown): ProjectCheck {
       showUnits: b.showUnits !== false,
       optOutPosition: b.optOutPosition === 'first' || b.optOutPosition === 'inline' ? b.optOutPosition : 'last',
       labels,
+      // An unknown value falls back to the default rather than refusing the study.
+      responseRequirement: (['optional', 'request', 'require'] as const).find((r) => r === b.responseRequirement),
     }
 
     let limesurvey: Project['limesurvey']

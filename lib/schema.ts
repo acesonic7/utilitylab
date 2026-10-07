@@ -136,6 +136,9 @@ export type BuilderConfig = {
   optOutPosition: 'last' | 'first' | 'inline'
   // User-overridable survey labels. Falls back to English defaults when unset.
   // Used in the choice-task preview and exports (Qualtrics/LimeSurvey/Sawtooth).
+  // Whether respondents must answer each choice task: 'optional', 'request' (prompted but may
+  // skip; the default) or 'require'. Applied to the Qualtrics and LimeSurvey exports.
+  responseRequirement?: 'optional' | 'request' | 'require'
   labels?: {
     choiceColumn?: string
     // Shown above every choice task in the preview and the Qualtrics and LimeSurvey exports.

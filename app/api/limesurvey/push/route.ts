@@ -253,6 +253,7 @@ async function push(
       assignGid,
       Buffer.from(lsq.xml, 'utf8').toString('base64'),
       'lsq',
+      lsq.mandatory,
     ])
     if (!imp.ok || !rc2Id(imp.result)) return fail(`Could not add the block assignment question: ${why(imp)}.`)
     log.push(`Created block assignment (gid=${assignGid}, question ${lsq.questionCode})`)
@@ -307,7 +308,7 @@ async function push(
       return fail('A choice task in this study could not be turned into a LimeSurvey question.')
     }
     const importData = Buffer.from(lsq.xml, 'utf8').toString('base64')
-    const add = await rpc('import_question', [sessionKey, surveyId, gid, importData, 'lsq'])
+    const add = await rpc('import_question', [sessionKey, surveyId, gid, importData, 'lsq', lsq.mandatory])
     // Documented to return the new question's id; anything else means it didn't import.
     const qid = add.ok ? rc2Id(add.result) : null
     if (!qid) {
