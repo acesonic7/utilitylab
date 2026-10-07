@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { travelModeExample } from '../lib/example'
 import { renderTaskAsHtml } from '../lib/qualtricsExport'
 
@@ -47,5 +47,6 @@ const html = `<!doctype html>
 </body>
 </html>`
 
+mkdirSync('./out', { recursive: true })
 writeFileSync('./out/preview.html', html)
 console.log(`Wrote out/preview.html (${html.length} bytes)`)
