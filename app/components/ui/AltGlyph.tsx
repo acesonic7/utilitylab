@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import type { AltIdentity, GlyphKind } from '@/lib/altIdentity'
 import { cx } from './cx'
 

@@ -76,7 +76,7 @@ function SourcePanel({
 }: {
   id: string
   hidden: boolean
-  headingRef: RefObject<HTMLHeadingElement>
+  headingRef: RefObject<HTMLHeadingElement | null>
   title: string
   tag?: ReactNode
   lede: string

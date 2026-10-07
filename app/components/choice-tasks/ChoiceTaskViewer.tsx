@@ -30,7 +30,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 // True while the element crosses the middle fifth of the viewport, so a sliver of the
 // section peeking in at the top or bottom edge does not capture J/K.
-function useInViewCentre(ref: React.RefObject<HTMLElement>): React.MutableRefObject<boolean> {
+function useInViewCentre(ref: React.RefObject<HTMLElement | null>): React.MutableRefObject<boolean> {
   const inView = useRef(false)
   useEffect(() => {
     const el = ref.current
