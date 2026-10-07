@@ -8,6 +8,7 @@ import { ChoiceSetLegend } from './ChoiceSetLegend'
 import { SECTIONS, onSectionLinkClick } from './sections'
 import { HereDot, StatusMarker } from './StatusMarker'
 import { WalkthroughLink } from './Walkthrough'
+import { LegalLinks } from '../legal/LegalLinks'
 import { useSectionStatus } from './useSectionStatus'
 import { useProgress, type StepState } from './Progress'
 
@@ -90,7 +91,10 @@ export function Rail({
       <ChoiceSetLegend project={project} />
 
       <div className="mt-auto flex flex-col gap-2 px-2 text-12 text-ink-3">
-        <WalkthroughLink onOpen={onOpenTour} className="self-start" />
+        <span className="flex items-center gap-3">
+          <WalkthroughLink onOpen={onOpenTour} />
+          <LegalLinks />
+        </span>
         <div className="flex items-center justify-between gap-2">
           <span className="font-mono">v{APP_VERSION}</span>
           <CreditLink />

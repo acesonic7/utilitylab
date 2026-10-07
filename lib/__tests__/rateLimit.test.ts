@@ -24,6 +24,13 @@ describe('rate limiter', () => {
     l.check('c', 0)
     expect(l.check('a', 1).ok).toBe(true)
   })
+  it('forgets clients once their window has passed', () => {
+    const l = createRateLimiter(1, 1000)
+    l.check('a', 0)
+    expect(l.check('a', 500).ok).toBe(false)
+    l.check('b', 2000)
+    expect(l.check('a', 2001).ok).toBe(true)
+  })
   it('reads the client from forwarding headers', () => {
     const h = (o: Record<string, string>) => ({ get: (n: string) => o[n] ?? null })
     expect(clientKey(h({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' }))).toBe('203.0.113.7')

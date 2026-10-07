@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import type { Project } from '@/lib/schema'
 import { buildSurveyLss } from '@/lib/limesurveyExport'
@@ -120,8 +121,14 @@ export default function LimeSurveyPush({
       }
     >
       <p className="-mt-2 max-w-[70ch] text-13 text-ink-3">
-        Pushes choice tasks to an existing LimeSurvey instance via RemoteControl 2. The password is
-        sent only with this request and never stored.
+        Pushes choice tasks to an existing LimeSurvey instance via RemoteControl 2. Your address, username,
+        password and the choice tasks pass through UtilityLab’s server function (hosted by Vercel in the USA) on
+        their way to your server; nothing is stored. To keep everything in your browser, download the LSS file
+        instead. See{' '}
+        <Link href="/privacy" className="text-ink-2 underline decoration-line-2 underline-offset-[3px] hover:text-ink">
+          Privacy
+        </Link>
+        .
       </p>
 
       <form
