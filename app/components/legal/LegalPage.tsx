@@ -4,7 +4,17 @@ import { Logo, Wordmark } from '../Logo'
 
 export const LAST_UPDATED = '7 October 2026'
 
-export function LegalPage({ title, lede, children }: { title: string; lede: ReactNode; children: ReactNode }) {
+export function LegalPage({
+  title,
+  lede,
+  updated,
+  children,
+}: {
+  title: string
+  lede: ReactNode
+  updated?: string
+  children: ReactNode
+}) {
   return (
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line bg-paper/85">
@@ -24,9 +34,12 @@ export function LegalPage({ title, lede, children }: { title: string; lede: Reac
       <main id="main" className="mx-auto max-w-[760px] px-4 pb-24 pt-10 sm:px-6">
         <h1 className="font-display text-34 font-semibold tracking-display text-ink sm:text-42">{title}</h1>
         <p className="mt-3 text-16 leading-[26px] text-ink-2">{lede}</p>
-        <p className="mt-2 text-12 text-ink-3">Last updated {LAST_UPDATED}</p>
+        <p className="mt-2 text-12 text-ink-3">Last updated {updated ?? LAST_UPDATED}</p>
         <div className="legal mt-8 space-y-8 text-14 leading-[22px] text-ink-2">{children}</div>
-        <nav aria-label="Legal" className="mt-14 flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-5 text-13 text-ink-3">
+        <nav aria-label="About UtilityLab" className="mt-14 flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-5 text-13 text-ink-3">
+          <Link href="/methods" className="focus-ring rounded-tick underline decoration-line-2 underline-offset-[3px] hover:text-ink">
+            Methods
+          </Link>
           <Link href="/privacy" className="focus-ring rounded-tick underline decoration-line-2 underline-offset-[3px] hover:text-ink">
             Privacy
           </Link>
@@ -47,9 +60,11 @@ export function LegalPage({ title, lede, children }: { title: string; lede: Reac
   )
 }
 
+const anchor = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-3">
+    <section id={anchor(title)} className="scroll-mt-6 space-y-3">
       <h2 className="font-display text-20 font-semibold text-ink">{title}</h2>
       {children}
     </section>

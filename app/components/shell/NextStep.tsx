@@ -41,7 +41,7 @@ export function NextStep({ after }: { after: SectionId }) {
         ? {
             target: 'design',
             title: 'Build the design from this structure',
-            body: 'Generate a D-efficient design here, or upload one from Ngene, R or another tool.',
+            body: 'Generate a design here (D-efficient, balanced or random), or upload one from Ngene, R or another tool.',
             action: { label: 'Generate design', run: () => goTo('design', { panel: 'generate' }) },
             secondary: (
               <Button icon={<Upload />} onClick={() => goTo('design', { panel: 'upload' })}>

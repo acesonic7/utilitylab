@@ -90,7 +90,7 @@ export default function DesignSection({
             body={
               design
                 ? 'The current design has no rows. Upload a CSV with one row per choice task, or generate a design from the structure.'
-                : 'Upload a design CSV with one row per choice task, or generate a D-efficient design from the structure.'
+                : 'Upload a design CSV with one row per choice task, or generate a D-efficient, balanced or random design from the structure.'
             }
             action={
               <div className="flex flex-wrap justify-center gap-2">

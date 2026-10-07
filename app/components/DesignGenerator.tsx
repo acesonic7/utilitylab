@@ -19,7 +19,7 @@ import { useWorkspaceActions } from './Workspace'
 import { runGeneration, type GenerationRun } from './design/runGeneration'
 
 const METHODS: { value: GenerationMethod; title: string; subtitle: string }[] = [
-  { value: 'd-optimal', title: 'D-optimal', subtitle: 'Maximizes statistical efficiency for an MNL model' },
+  { value: 'd-optimal', title: 'D-efficient', subtitle: 'Minimises the MNL D-error at the priors you set' },
   { value: 'balanced', title: 'Balanced search', subtitle: 'Best of K random candidates by validation score' },
   { value: 'random', title: 'Random', subtitle: 'One-shot uniform random sampling' },
 ]
@@ -240,7 +240,7 @@ export default function DesignGenerator({
                     type="button"
                     aria-pressed={on}
                     onClick={() => setNumTasks(n)}
-                    title={`${n} choice tasks: a multiple of every attribute's level count, so each level can appear equally often. A D-optimal design may still favour the extreme levels of numeric attributes.`}
+                    title={`${n} choice tasks: a multiple of every attribute's level count, so each level can appear equally often. A D-efficient design may still favour the extreme levels of numeric attributes.`}
                     className={cx(
                       'focus-ring tnum inline-flex h-6 items-center rounded-pill border px-2 text-12 font-medium leading-none transition-colors',
                       on ? 'border-ink bg-ink text-paper' : 'border-line-2 bg-surface text-ink-2 hover:border-ink-4 hover:text-ink',
@@ -253,7 +253,7 @@ export default function DesignGenerator({
             </div>
           )}
         </div>
-        <Field label="Blocks" hint="Choice tasks split evenly across blocks; each respondent sees one block (in Qualtrics TXT imports, after you add a randomizer).">
+        <Field label="Blocks" hint="Choice tasks are dealt to blocks in turn, so block sizes differ by at most one; each respondent sees one block (in Qualtrics TXT imports, after you add a randomizer).">
           {(id, describedBy) => (
             <NumberInput
               id={id}
@@ -392,8 +392,9 @@ export default function DesignGenerator({
           ))}
         </div>
         <p className="mt-3 text-12 text-ink-3">
-          Higher weight = the search penalizes that issue more strongly. Defaults treat 1
-          dominated/overlapping choice task as roughly equal to 50% balance deviation or |r|=0.5.
+          Higher weight = the search penalizes that issue more strongly. With the defaults, one
+          dominance relation or one pair of identical alternatives costs about as much as a 50%
+          level-balance deviation or |r| = 0.5.
         </p>
       </Disclosure>
 
@@ -571,7 +572,13 @@ function PriorsPanel({
         their value (for example per minute); categorical and boolean attributes are dummy coded against
         their first level. Leave them at 0 if unknown: the design is then efficient for the case where
         every coefficient is zero, which is a starting point, not a design that suits any β. Enter
-        estimates from a pilot or the literature when you have them.
+        estimates from a pilot or the literature when you have them. A D-efficient design is only as good
+        as its priors: if the true values are far from them it can be less efficient than a random
+        design, so use non-zero priors only when you are confident in them (Walker et al., 2018; see{' '}
+        <a href="/methods#3-priors-and-why-d-efficiency-is-not-the-whole-story" className="underline decoration-line-2 underline-offset-[3px] hover:text-ink">
+          Methods
+        </a>
+        ).
       </p>
       <div className="mt-3 divide-y divide-line">
         {project.attributes.map((attr) => (

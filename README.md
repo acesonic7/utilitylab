@@ -4,7 +4,7 @@
 
 A web-based tool for designing, checking and exporting stated choice experiments (stated-preference / discrete-choice experiments) — connecting the experimental design, its diagnostics and the survey deployment in a single workflow.
 
-**Try it: [www.utilitylab.space](https://www.utilitylab.space)**. Free, open source, nothing to install.
+**Try it: [www.utilitylab.space](https://www.utilitylab.space)**. Free, open source, nothing to install. How it works: [Methods](https://www.utilitylab.space/methods).
 
 > Made by [Ioannis Tsouros](https://github.com/acesonic7) ([@acesonic7](https://github.com/acesonic7))
 
@@ -26,7 +26,8 @@ The workspace is one page in five steps.
 
 ### 01 Structure
 - Define **alternatives** (labeled or unlabeled, with an optional opt-out), **attributes** and **levels**
-- Per-attribute settings: type (numeric / categorical / boolean), unit, display format, preference direction, applies-to scope and per-alternative levels (for labeled experiments), optional images
+- Per-attribute settings: type (numeric / categorical / boolean), unit, display format, preference direction, applies-to scope, per-alternative levels (numeric attributes), optional images
+- **Fill levels** (numeric attributes): build a level set from a range and step, a range and count, steps around a reference, or a geometric series, rounded to suit the unit
 - **Pivoted attributes** (numeric): levels entered as offsets from, or multipliers of, a reference value — see [Pivot designs](#pivot-designs)
 - **Context variables**: variables that set the scene for a whole choice task (weather, trip purpose, …) and take the same level for every alternative in it
 - **Constraints**: forbid implausible level combinations within an alternative
@@ -38,11 +39,13 @@ The workspace is one page in five steps.
 Two sources:
 - **Upload CSV** — drop a design from Ngene/R/etc. (wide format: one row per choice task), auto-detect column → (alternative, attribute) or context-variable mapping, and match each value to a level by its value, its displayed text (e.g. `€2.00`, `15 min`) or its level number counted from 1 or 0. The design is applied only when every alternative × attribute and context variable has a column and every cell names a level; block labels (0/1, A/B, …) are numbered 1, 2, …. A template CSV can be downloaded from the current structure, and the design matrix's own CSV can be uploaded again.
 - **Generate** — three methods:
-  - **D-optimal** — coordinate-exchange search (Meyer & Nachtsheim 1995) with multistarts, minimising the D-error of a multinomial logit (MNL) model: dummy coding, alternative-specific constants for labeled experiments, optional priors per parameter; levels that would violate a constraint are skipped
+  - **D-efficient** — coordinate-exchange search (Meyer & Nachtsheim 1995) with several random starts, minimising the D-error of a multinomial logit (MNL) model at fixed priors: generic attribute parameters, dummy coding, constants as set out in [Methods](https://www.utilitylab.space/methods#1-the-choice-model); changes that would add a constraint violation are refused. The result is a locally optimal, D-efficient design.
   - **Balanced search** — best of K random candidates by a composite score (level balance, attribute correlation, dominance, overlap)
-  - **Random** — one-shot baseline
+  - **Random** — independent uniform draws
 
-All three draw context-variable levels at random for each choice task; context variables are not part of the D-error.
+All three deal choice tasks to blocks in turn and draw context-variable levels at random; neither blocks nor context variables are optimised, and context variables are not part of the D-error.
+
+> **A D-efficient design is only as good as its priors.** Walker, Wang, Thorhauge & Ben-Akiva (2018) show that a D-efficient design can become the least efficient design when the true parameters are far from its priors, while random and orthogonal designs stay robust. Use non-zero priors only when you trust them, and check robustness by changing the priors: the D-error of the same design is recomputed.
 
 A **target sample** panel suggests a `(choice tasks, blocks)` split for the expected number of respondents and rates the current configuration by **observations per parameter** (respondents × choice tasks per respondent ÷ model parameters): low below 25, borderline from 25, good from 50. This is a rule of thumb, not a statistical power analysis.
 
@@ -54,7 +57,7 @@ Pages through the design as the choice tasks respondents will see (UtilityLab's 
 The **analyst lens** overlays what the analyst needs on the same choice task: level codes, dominated and identical alternatives, constraint violations, and the MNL choice probabilities under the current priors.
 
 ### 04 Diagnostics
-- **D-error** of the current design under the MNL model and the current priors — for uploaded designs too
+- **D-error** of the current design under the MNL model — a D<sub>z</sub>-error with all priors at zero, a D<sub>p</sub>-error with fixed non-zero priors — for uploaded designs too
 - **Observations per parameter** for the target sample (the same rule of thumb as in 02 Design)
 - Configurable advisory checks: **dominance**, **identical alternatives (overlap)**, **attribute correlation**, **level balance** (attributes and context variables), **constraint violations** — severity-coded, with per-choice-task detail, re-run after every edit
 
@@ -81,7 +84,7 @@ Details in [docs/pivot-designs.md](docs/pivot-designs.md).
 
 ## Stack
 
-- Next.js 14 (App Router) + React 18
+- Next.js 16 (App Router) + React 19
 - TypeScript (strict)
 - Tailwind CSS
 - PapaParse for CSV
@@ -110,6 +113,7 @@ npm run dev
 
 ```bash
 npm test           # unit tests (vitest) for the model, generators, exports, library, methods paragraph and LimeSurvey push checks
+scripts/limesurvey-e2e/run.sh   # end-to-end check of the LimeSurvey exports against a real LimeSurvey 6 in Docker
 ```
 
 ### Other scripts
@@ -118,7 +122,7 @@ npm test           # unit tests (vitest) for the model, generators, exports, lib
 npm run build        # production build
 npm run validate     # run the design checks on the example study (CLI)
 npm run diagnostics  # diagnostics, D-error and signature for the example study, with assertions (CLI)
-npm run export       # write Qualtrics TXT + QSF and Sawtooth CSV for the example study to out/ (CLI)
+npm run export       # write Qualtrics TXT + QSF and Sawtooth CSV for the example study to out/ (CLI, git-ignored)
 npm run preview      # write a standalone HTML preview to out/preview.html (CLI)
 ```
 
@@ -133,13 +137,15 @@ This repo is Vercel-ready:
 3. Build command: `next build` (default)
 4. Output directory: `.next` (default)
 
-That's it. No secrets and no env vars. The LimeSurvey push route deploys as a serverless function (Node.js runtime); everything else is client-rendered.
+That's it. No secrets and no env vars. The LimeSurvey push route deploys as a serverless function (Node.js runtime) in the region set in `vercel.json` (Frankfurt, `fra1`); everything else is client-rendered. Set `NEXT_PUBLIC_SITE_URL` if you deploy under your own domain.
 
 ## Project structure
 
 ```
 app/
   page.tsx, layout.tsx, globals.css
+  methods/, privacy/, terms/    # methods, privacy and terms pages
+  opengraph-image.tsx, robots.ts, sitemap.ts
   api/limesurvey/push/route.ts  # the one server route: relays a push to LimeSurvey RemoteControl 2
   components/
     Designer.tsx                # top level: landing screen, then the workspace
@@ -147,7 +153,7 @@ app/
     ProjectStore.tsx            # project state; DesignHealth.tsx: checks + D-error shared by every view
     ProjectHeader.tsx, TopBar.tsx
     DesignSource.tsx            # Upload | Generate panels
-    DesignGenerator.tsx         # generator UI (random / balanced / D-optimal), priors, target sample
+    DesignGenerator.tsx         # generator UI (D-efficient / balanced / random), priors, target sample
     CsvUpload.tsx               # upload + column mapping
     ExportButtons.tsx, LimeSurveyPush.tsx
     sections/                   # 01 Structure, 02 Design, 03 Choice tasks, 04 Diagnostics, 05 Export
@@ -181,6 +187,9 @@ lib/
   sawtoothExport.ts             # Lighthouse Studio design CSV
   wiringGuide.ts                # pivot wiring guide
   methodsParagraph.ts           # generated methods paragraph
+  surveyText.ts                 # question text, response requirement, survey-safe escaping
+  levelFill.ts                  # Fill levels: generated level sets and unit-aware rounding
+  feedback.ts, rateLimit.ts, site.ts
   signature.ts                  # one-line design signature
   __tests__/                    # vitest unit tests
 scripts/
@@ -188,34 +197,30 @@ scripts/
 docs/
   pivot-designs.md              # pivot designs: what is implemented, what is deferred
   releasing.md                  # releases and Zenodo DOIs
-out/
-  sample-design.csv             # drop into the upload zone to test the import flow
-  preview.html, *.txt, *.qsf, *-sawtooth.csv  # CLI script outputs
 ```
 
-## Status
+## Known limitations
 
-Shipped:
-- ✅ CSV upload + column mapping
-- ✅ Generators: D-optimal (coordinate exchange, with priors), balanced search, random; constraint-aware
-- ✅ Choice-task preview with the analyst lens
-- ✅ Diagnostics: D-error, observations per parameter, design checks
-- ✅ Context variables
-- ✅ Static pivots + wiring guide
-- ✅ Exports: Qualtrics (TXT + QSF), LimeSurvey (LSS; RemoteControl push in beta), Sawtooth CSV (beta)
-- ✅ Methods paragraph and design signature
+- MNL only, with generic attribute parameters: no alternative-specific attribute parameters, interactions or Bayesian (D<sub>b</sub>) designs, and no priors on constants
+- Blocks and context variables are assigned in turn or at random, not optimised
+- Pivoted attributes are modelled on the offsets or multipliers entered; per-respondent piping in the exports is still manual (see [docs/pivot-designs.md](docs/pivot-designs.md))
+- The Qualtrics and Sawtooth exports have not yet been tested on live accounts; the LimeSurvey exports have (`scripts/limesurvey-e2e/`)
 
-Deferred:
-- ⏳ Automatic per-respondent piping of pivoted attributes in the exports, reference alternative, categorical pivots, range clamping (see [docs/pivot-designs.md](docs/pivot-designs.md))
+The full list, with what each choice means, is on the [Methods](https://www.utilitylab.space/methods#7-limitations) page.
 
 ## Terminology
 
-Aligned to the Wang, Thorhauge, Walker & Ben-Akiva tradition (MIT/Berkeley discrete-choice):
+Aligned to the vocabulary of Walker, Wang, Thorhauge & Ben-Akiva (2018) and the MIT/Berkeley discrete-choice tradition:
 **choice task** (single scenario), **alternative** (option in a task), **attribute** (variable describing alternatives), **level** (attribute value), **block** (subset of choice tasks shown to one respondent), **stated choice experiment** (the full instrument).
 
 ## References
 
+- Bliemer, M. C. J., Rose, J. M., & Chorus, C. G. (2017). Detecting dominance in stated choice data and accounting for dominance-based scale differences in logit models. *Transportation Research Part B: Methodological*, 102, 83–104. [doi:10.1016/j.trb.2017.05.005](https://doi.org/10.1016/j.trb.2017.05.005)
+- Huber, J., & Zwerina, K. (1996). The importance of utility balance in efficient choice designs. *Journal of Marketing Research*, 33(3), 307–317.
 - Meyer, R. K., & Nachtsheim, C. J. (1995). The coordinate-exchange algorithm for constructing exact optimal experimental designs. *Technometrics*, 37(1), 60–69. [doi:10.1080/00401706.1995.10485889](https://doi.org/10.1080/00401706.1995.10485889)
+- Rose, J. M., & Bliemer, M. C. J. (2009). Constructing efficient stated choice experimental designs. *Transport Reviews*, 29(5), 587–617.
+- Rose, J. M., & Bliemer, M. C. J. (2013). Sample size requirements for stated choice experiments. *Transportation*, 40(5), 1021–1041.
+- Walker, J. L., Wang, Y., Thorhauge, M., & Ben-Akiva, M. (2018). D-efficient or deficient? A robustness analysis of stated choice experimental designs. *Theory and Decision*, 84(2), 215–238. [doi:10.1007/s11238-017-9647-3](https://doi.org/10.1007/s11238-017-9647-3)
 
 ## How to cite
 

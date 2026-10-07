@@ -9,7 +9,7 @@ import { Button, Panel } from '../ui'
 import { ChevronDown, ChevronRight, Download, Refresh, Trash } from '../Icons'
 import { useLibrary } from '../library/LibraryContext'
 
-const METHOD: Record<string, string> = { 'd-optimal': 'D-optimal', balanced: 'Balanced search', random: 'Random' }
+const METHOD: Record<string, string> = { 'd-optimal': 'D-efficient', balanced: 'Balanced search', random: 'Random' }
 
 function describe(d: Design): string {
   if (d.source === 'generated') {

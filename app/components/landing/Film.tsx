@@ -233,7 +233,7 @@ export function Film({ trace, active }: { trace: SearchTrace; active: boolean })
                   step === 1 ? 'opacity-100' : 'opacity-0',
                 )}
               >
-                D-optimal search · D-error <span className="tnum text-ink">{dError}</span>
+                D-efficient search · D-error <span className="tnum text-ink">{dError}</span>
               </p>
             </div>
           </div>

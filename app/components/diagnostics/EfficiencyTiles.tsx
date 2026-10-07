@@ -26,7 +26,7 @@ const OBS_BANDS: GaugeBand[] = [
 ]
 
 const SAMPLE_TAG: Record<SampleStatus, { tone: TagTone; word: string }> = {
-  good: { tone: 'ok', word: 'Good' },
+  good: { tone: 'ok', word: 'Enough' },
   borderline: { tone: 'caution', word: 'Borderline' },
   low: { tone: 'risk', word: 'Low' },
   unset: { tone: 'muted', word: 'Not set' },
@@ -100,7 +100,7 @@ export function EfficiencyTiles({
     K === 0
       ? 'No parameters to estimate yet. Add attributes in 01 Structure.'
       : health.dError !== null
-        ? `MNL, ${plural(K, 'parameter')} (${kParts}). Lower is better; compare designs under the same priors.`
+        ? `${health.priorsNonZero ? 'Dp-error: MNL at your fixed, non-zero priors' : 'Dz-error: MNL with every prior at zero'}, ${plural(K, 'parameter')} (${kParts}). Lower is better, but only for the same model and priors; ${health.priorsNonZero ? 'if the true values differ from your priors, the design can lose much of its efficiency' : 'it says nothing about how the design does if the true coefficients are not zero'}.`
         : `Not computable: this design does not identify all ${plural(K, 'parameter')} (${kParts}). Add choice tasks or vary more levels.`
 
   // Observations per parameter

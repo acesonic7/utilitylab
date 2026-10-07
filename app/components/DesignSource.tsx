@@ -55,7 +55,7 @@ export default function DesignSource({
         headingRef={generateHeading}
         title="Generate a design"
         tag={<Tag tone="muted">Beta</Tag>}
-        lede="Build the design from the structure by D-optimal search, balanced search or random sampling."
+        lede="Build the design from the structure by a D-efficient search, a balanced search or random sampling."
         onClose={() => onClose()}
       >
         <DesignGenerator project={project} setProject={setProject} />

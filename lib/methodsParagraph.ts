@@ -105,7 +105,9 @@ function pivotSentence(attr: Attribute, name: string): string | null {
     .sort((a, b) => a.position - b.position)
     .map((l) => Number(l.value))
     .filter((v) => Number.isFinite(v))
-  const head = `${name} was pivoted on each respondent’s own reference value`
+  // UtilityLab cannot tell whether the researcher piped each respondent's own value into the survey,
+  // so the sentence states only how the levels are defined.
+  const head = `${name} was defined relative to a reference value`
   if (hasOverrides || values.length === 0) {
     return `${head}, with levels as ${mode === 'relative' ? 'multipliers of' : 'offsets from'} that value. `
   }
@@ -123,7 +125,7 @@ function generationPhrase(project: Project): { text: string; references: string[
   const details: string[] = []
   let how: string
   if (params.method === 'd-optimal') {
-    how = 'with a coordinate-exchange D-optimal search (Meyer & Nachtsheim, 1995)'
+    how = 'as a D-efficient design, by a coordinate-exchange search that minimises the D-error (Meyer & Nachtsheim, 1995)'
     if (params.multistarts) details.push(`${num(params.multistarts)} random ${s(params.multistarts, 'start')}`)
   } else if (params.method === 'balanced') {
     how = params.iterations
@@ -222,7 +224,6 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
 
     // D-error
     if (health.K > 0) {
-      const priors = health.priorsNonZero ? 'non-zero' : 'zero'
       const layout = paramLayout(project)
       const asc = layout.ascCount
       const ascText = layout.sharedConstant
@@ -235,12 +236,14 @@ export function buildMethodsParagraph(project: Project, health: MethodsHealth): 
         ? '; categorical attributes were dummy coded against their first level'
         : ''
       if (health.dError !== null) {
-        w.t(`Under a multinomial logit (MNL) model with ${priors} priors (K = ${health.K} parameters${ascText}), the design’s D-error was `)
+        w.t(
+          `Under a multinomial logit (MNL) model with ${health.priorsNonZero ? 'fixed, non-zero priors' : 'all priors set to zero'} (K = ${health.K} parameters${ascText}), the design’s ${health.priorsNonZero ? 'Dp' : 'Dz'}-error was `,
+        )
         w.m(formatDError(health.dError))
         w.t(`${optOutNote}${coding}. `)
       } else {
         w.t(
-          `Under a multinomial logit (MNL) model with ${priors} priors (K = ${health.K} parameters${ascText}), the design’s D-error could not be computed because the design does not identify every parameter (the information matrix is singular). `,
+          `Under a multinomial logit (MNL) model with ${health.priorsNonZero ? 'fixed, non-zero priors' : 'all priors set to zero'} (K = ${health.K} parameters${ascText}), the design’s D-error could not be computed because the design does not identify every parameter (the information matrix is singular). `,
         )
       }
     }

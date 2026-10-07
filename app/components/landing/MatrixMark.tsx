@@ -22,7 +22,7 @@ export type MatrixIntro = {
   skip: () => void
 }
 
-/** Replays a D-optimal search on the example study, frame by frame, when `play` is set. */
+/** Replays a D-efficient search on the example study, frame by frame, when `play` is set. */
 export function useMatrixIntro(play: boolean, search: SearchTrace): MatrixIntro {
   const trace = play ? search : null
   const [phase, setPhase] = useState<IntroPhase>(play ? 'search' : 'done')
@@ -161,7 +161,7 @@ export function MatrixMark({ intro, size = 56 }: { intro: MatrixIntro; size?: nu
             className="fill-ink-3 font-mono"
             style={{ opacity: searching ? 1 : 0, transition: 'opacity 240ms ease' }}
           >
-            D-optimal search · D-error{' '}
+            D-efficient search · D-error{' '}
             <tspan className="tnum fill-ink">
               {current && Number.isFinite(current.dError) ? current.dError.toFixed(3) : '—'}
             </tspan>

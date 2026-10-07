@@ -7,6 +7,9 @@ const link =
 export function LegalLinks({ className }: { className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-3', className)}>
+      <Link href="/methods" className={link}>
+        Methods
+      </Link>
       <Link href="/privacy" className={link}>
         Privacy
       </Link>

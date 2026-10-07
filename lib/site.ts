@@ -3,4 +3,4 @@
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.utilitylab.space').replace(/\/+$/, '')
 
 export const SITE_DESCRIPTION =
-  'Design, check and export stated choice experiments in the browser: D-efficient designs, diagnostics and ready-to-field Qualtrics and LimeSurvey surveys. Free and open source.'
+  'Design, check and export stated choice experiments in the browser: D-efficient, balanced or random designs, diagnostics and ready-to-field Qualtrics and LimeSurvey surveys. Free and open source.'
