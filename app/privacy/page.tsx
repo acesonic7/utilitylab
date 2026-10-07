@@ -52,6 +52,13 @@ export default function PrivacyPage() {
           nothing leave your browser, download the LimeSurvey file (LSS) and import it yourself.
         </p>
         <p>
+          <strong className="font-semibold text-ink">Feedback.</strong> The Feedback form does not send anything
+          itself: it opens GitHub in a new tab with your text filled in, so GitHub receives that text, and the app
+          version and browser if you leave them ticked, when its page loads. Nothing is published until you submit it
+          there, under{' '}
+          <Ext href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</Ext>.
+        </p>
+        <p>
           <strong className="font-semibold text-ink">Images you link.</strong> If you add an image address to an
           alternative, attribute or level, your browser loads the image from that site, which can then see your IP
           address. The same happens for respondents when an exported survey shows the image. Host images on your survey

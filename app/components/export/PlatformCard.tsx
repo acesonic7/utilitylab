@@ -34,7 +34,7 @@ export function PlatformCard({
       </div>
       <div className="flex flex-1 flex-col gap-1.5">
         <p className="text-13 leading-[18px] text-ink-3">{description}</p>
-        {howTo != null && <p className="text-12 leading-[17px] text-ink-3">{howTo}</p>}
+        {howTo != null && <div className="text-12 leading-[17px] text-ink-3">{howTo}</div>}
       </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
       {error && (
