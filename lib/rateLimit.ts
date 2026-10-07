@@ -11,6 +11,8 @@ export function createRateLimiter(limit: number, windowMs: number, maxKeys = 500
   return {
     check(key, now = Date.now()) {
       const since = now - windowMs
+      // Drop clients with no hits left in the window, so an address is not held longer than needed.
+      for (const [k, times] of hits) if (times[times.length - 1] <= since) hits.delete(k)
       const recent = (hits.get(key) ?? []).filter((t) => t > since)
       if (recent.length >= limit) {
         hits.set(key, recent)

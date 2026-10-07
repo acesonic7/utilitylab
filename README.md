@@ -226,6 +226,10 @@ If you use UtilityLab in your research, please cite it. The citation metadata is
 
 Cite the version DOI when you report results, so readers can reproduce the exact design engine you used.
 
+## Privacy and terms
+
+The hosted app has no accounts, cookies or analytics; studies stay in the browser, and only the optional LimeSurvey push passes data through a server function. See the [privacy page](https://utilitylab-ten.vercel.app/privacy) and the [terms and disclaimer](https://utilitylab-ten.vercel.app/terms).
+
 ## Contributing and security
 
 Bug reports and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). Please report security problems privately as described in [SECURITY.md](SECURITY.md).

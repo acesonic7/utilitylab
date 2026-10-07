@@ -9,6 +9,7 @@ import { useScrollSpy } from './useScrollSpy'
 import { useReviewOnDwell } from './Progress'
 import { ExampleBanner } from '../library/ExampleBanner'
 import { Walkthrough, WalkthroughLink } from './Walkthrough'
+import { LegalLinks } from '../legal/LegalLinks'
 
 export const canvasClass = 'min-w-0 px-4 pb-24 pt-8 sm:px-8 lg:px-11 lg:pt-10'
 export const contentClass = 'mx-auto max-w-[1120px]'
@@ -56,7 +57,10 @@ export function AppShell({
             {header}
             {children}
             <footer className="mt-[72px] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line pt-[18px] text-13 text-ink-3">
-              <span>UtilityLab v{APP_VERSION} · Stated choice experiment designer</span>
+              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span>UtilityLab v{APP_VERSION} · Stated choice experiment designer</span>
+                <LegalLinks />
+              </span>
               <span className="flex items-center gap-4 lg:hidden">
                 <WalkthroughLink onOpen={openTour} />
                 <CreditLink />

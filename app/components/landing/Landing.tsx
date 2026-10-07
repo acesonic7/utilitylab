@@ -7,6 +7,7 @@ import { Wordmark } from '../Logo'
 import { ChevronRight, Upload } from '../Icons'
 import { SkipLink } from '../shell/AppShell'
 import { APP_VERSION, CreditLink } from '../shell/Rail'
+import { LegalLinks } from '../legal/LegalLinks'
 import { ThemeToggle } from '../shell/ThemeToggle'
 import { Button, buttonBase, buttonVariants, cx } from '../ui'
 import { Film } from './Film'
@@ -172,8 +173,11 @@ export function Landing({
             'flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line py-[18px] text-13 text-ink-3',
           )}
         >
-          <span>
-            UtilityLab <span className="font-mono text-12">v{APP_VERSION}</span>
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              UtilityLab <span className="font-mono text-12">v{APP_VERSION}</span>
+            </span>
+            <LegalLinks />
           </span>
           <CreditLink />
         </footer>
