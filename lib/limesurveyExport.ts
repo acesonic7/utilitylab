@@ -1,5 +1,6 @@
 import type { Project, DesignRow, Alternative } from './schema'
 import { renderTaskAsHtml } from './qualtricsExport'
+import { htmlText, stripControl } from './surveyText'
 import { exportBlocks } from './blocks'
 
 // LimeSurvey export module. Produces:
@@ -12,7 +13,7 @@ import { exportBlocks } from './blocks'
 const DB_VERSION = 423 // safe baseline; LS importers accept this range
 
 function escapeXml(s: string): string {
-  return s
+  return stripControl(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -22,7 +23,7 @@ function escapeXml(s: string): string {
 
 function cdata(s: string): string {
   // Wrap in CDATA, escaping any pre-existing ]]> sequences.
-  return `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`
+  return `<![CDATA[${stripControl(s).replace(/]]>/g, ']]]]><![CDATA[>')}]]>`
 }
 
 function activeAlts(project: Project): Alternative[] {
@@ -88,7 +89,7 @@ function choiceTaskSpec(project: Project, row: DesignRow, qid: number, gid: numb
     code: questionCode(row.taskId, row.block),
     text: renderTaskAsHtml(project, row),
     order,
-    answers: activeAlts(project).map((a) => a.label),
+    answers: activeAlts(project).map((a) => htmlText(a.label)),
     attributes,
   }
 }

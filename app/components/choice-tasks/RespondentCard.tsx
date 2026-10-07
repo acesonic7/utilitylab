@@ -6,7 +6,7 @@ import { altIdentity, altStyle } from '@/lib/altIdentity'
 import { AltGlyph, cx } from '../ui'
 import { CheckIcon } from './icons'
 import {
-  QUESTION_STEM,
+  questionStem,
   cellFor,
   choiceColumnLabel,
   contextEntries,
@@ -85,7 +85,7 @@ export function RespondentCard({
         id={stemId}
         className="my-5 font-display text-20 font-semibold tracking-[-0.018em] text-ink [font-variation-settings:'opsz'_28] sm:text-[23px] sm:leading-[30px]"
       >
-        {QUESTION_STEM}
+        {questionStem(project)}
       </h3>
 
       <div role="group" aria-labelledby={stemId} className="relative -mx-1.5 overflow-x-auto px-1.5 pb-2 pt-0.5">

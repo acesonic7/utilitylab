@@ -138,6 +138,8 @@ export type BuilderConfig = {
   // Used in the choice-task preview and exports (Qualtrics/LimeSurvey/Sawtooth).
   labels?: {
     choiceColumn?: string
+    // Shown above every choice task in the preview and the Qualtrics and LimeSurvey exports.
+    questionStem?: string
   }
 }
 

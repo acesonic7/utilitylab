@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: limesurvey
+      MARIADB_USER: limesurvey
+      MARIADB_PASSWORD: ${DB_PASS}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+  limesurvey:
+    image: martialblog/limesurvey:6-apache
+    depends_on: [db]
+    ports: ["127.0.0.1:8082:8080"]
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: limesurvey
+      DB_USERNAME: limesurvey
+      DB_PASSWORD: ${DB_PASS}
+      ADMIN_USER: ${LS_USER}
+      ADMIN_PASSWORD: ${LS_PASS}
+      ADMIN_NAME: Test
+      ADMIN_EMAIL: test@example.test
+      PUBLIC_URL: http://localhost:8082
+      BASE_URL: http://localhost:8082
