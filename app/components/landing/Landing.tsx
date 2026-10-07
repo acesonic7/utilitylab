@@ -8,6 +8,7 @@ import { ChevronRight, Upload } from '../Icons'
 import { SkipLink } from '../shell/AppShell'
 import { APP_VERSION, CreditLink } from '../shell/Rail'
 import { LegalLinks } from '../legal/LegalLinks'
+import { FeedbackButton } from '../feedback/Feedback'
 import { ThemeToggle } from '../shell/ThemeToggle'
 import { Button, buttonBase, buttonVariants, cx } from '../ui'
 import { Film } from './Film'
@@ -177,6 +178,7 @@ export function Landing({
             <span>
               UtilityLab <span className="font-mono text-12">v{APP_VERSION}</span>
             </span>
+            <FeedbackButton />
             <LegalLinks />
           </span>
           <CreditLink />

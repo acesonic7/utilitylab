@@ -11,6 +11,7 @@ import { useProgress } from './shell/Progress'
 import { AltGlyph, Button, IconButton, Tag, cx } from './ui'
 import { SavedIndicator } from './shell/SavedIndicator'
 import { ThemeToggle } from './shell/ThemeToggle'
+import { FeedbackButton } from './feedback/Feedback'
 
 // The primary action follows the first step not done yet; Export takes over at the end.
 const NEXT_ACTION: Partial<Record<SectionId, { label: string; opts?: GoToOptions }>> = {
@@ -123,6 +124,7 @@ export default function TopBar({ project }: { project: Project }) {
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <SavedIndicator className="mr-1.5 hidden lg:inline-flex" />
+          <FeedbackButton look="button" className="hidden md:inline-flex" />
           <ThemeToggle />
           {showPreview && (
             <>
