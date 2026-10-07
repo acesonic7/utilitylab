@@ -100,7 +100,7 @@ export default async function OpengraphImage() {
             Design, check and export stated choice experiments.
           </div>
           <div style={{ display: 'flex', fontSize: 30, color: '#44474F', lineHeight: 1.35, maxWidth: 1000 }}>
-            Efficient or random designs, diagnostics, and ready-to-field Qualtrics and LimeSurvey surveys, in the browser.
+            D-efficient, balanced or random designs, checked for dominance, correlation and balance, and exported as ready-to-field Qualtrics and LimeSurvey surveys.
           </div>
         </div>
 
